@@ -28,7 +28,7 @@ from airflow.providers.sftp.operators.sftp import SFTPHook
     catchup=False,
     # render Jinja template as native Python object
     render_template_as_native_obj=True,
-    tags=["test","monthly","data"],
+    tags=["api_to_csv", "month", "ext","openapi"],
 )
 def api_dw_month_data_2nd():
     # PostgresHook 객체 생성

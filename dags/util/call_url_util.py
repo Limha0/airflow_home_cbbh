@@ -183,6 +183,8 @@ class CallUrlUtil:
         params_dict = {}
 
         # 파라미터 존재 시
+        if dtst_cd in {"data852"}:  # 기상청_단기예보_시간
+            params_dict["params"] = [today, start_date.strftime("%H") + '00']
         if dtst_cd in {"data677", "data32"}:  # 새올_민원통계, 측정소별_실시간_일평균_정보_조회
             params_dict["params"] = today
         # TAAS, 지방재정365(계약현황, 세부사업별_세출현황 제외), 한국천문연구원_특일_정보, 인사(당해년도연가일수통계_정보송신), 국가통계포털(노령화지수_시도, 추계인구_시_군_구), 지방재정(사업, 세부사업, 부서코드, 부서코드이력, 세출통계목코드, 회계구분코드, 세입목코드 제외)
@@ -243,6 +245,8 @@ class CallUrlUtil:
             return f"{page_no}"
         if dtst_cd == "data921":
             return f"{param_list[repeat_num - 1]}&pageNo={page_no}"
+        if dtst_cd in {"data852"}:  # 기상청_단기예보_시간
+            return f"{page_no}&base_date={params[0]}&base_time={params[1]}"
         if dtst_cd in {"data30", "data31"}:  # 대기오염정보_측정소정보, 대기오염정보_측정소별_실시간_측정정보_조회
             return f"{page_no}&stationName={param_list[repeat_num - 1]}"
         if dtst_cd == "data32":  # 측정소별_실시간_일평균_정보_조회 

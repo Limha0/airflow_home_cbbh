@@ -12,6 +12,7 @@ class ThDataClctMastrLog(Base):
 
     clct_log_sn = Column(Integer, primary_key=True)
     dtst_cd = Column(String)
+    dtst_dtl_cd = Column(String)
     clct_ymd = Column(String)
     clct_data_nm = Column(String)
     # pbadms_fld_cd = Column(String)

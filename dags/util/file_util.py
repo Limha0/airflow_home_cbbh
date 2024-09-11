@@ -153,3 +153,16 @@ class FileUtil:
             logging.info(f"unzip_file Exception::: {e}")
             raise e
         logging.info(f"unzip_file full_zip_path::: {full_zip_path}")
+
+    def check_file_exist(full_file_name):
+        """
+        파일의 존재 여부 확인
+        params: full_file_name
+        return: result
+        """
+        try:
+            result = os.path.isfile(full_file_name)
+        except FileExistsError as e:
+            logging.info(f"check_file_exist FileExistsError::: {e}")
+            raise e
+        return result

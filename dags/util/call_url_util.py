@@ -128,6 +128,8 @@ class CallUrlUtil:
         return: return_keyword (list_keywords, search_keyword에 해당하는 키워드 값)
         """
         if keyword == "list_keywords":  # 데이터를 담고 있는 keySet
+            if pvdr_inst_cd in {"pi00001"} or dtst_cd in {"data39", "data54"} or pvdr_site_cd == "ps00026": #지방재정
+                return ["row"]
             if dtst_cd in {"data919","data920","data922","data6"}:
                 return ["data"]
             if pvdr_inst_cd in {"pi00008", "pi00012", "pi00019"} or dtst_cd in {"data852", "data50", "data650", "data787", "data788", "data853"}:
@@ -263,12 +265,6 @@ class CallUrlUtil:
             return f"{page_no}&fyr={param_list[repeat_num - 1][:4]}&exe_ymd={param_list[repeat_num - 1]}"
         if pvdr_inst_cd == "pi00019" or (pvdr_site_cd == "ps00010" and dtst_cd not in {"data59", "data66"}) or pvdr_site_cd == "ps00008" or dtst_cd in {"data4", "data8", "data704", "data706", "data53", "data854", "data855"}:  # 국가통계포털(노령화지수_시도, 추계인구_시_군_구 제외)
             return ""
-        if dtst_cd == "data780":  # 도서관_지역별_인기대출_도서_조회
-            params_val = param_list[repeat_num - 1].split(',')
-            if params_val[0] == "31260":  # 양주(31260)
-                return f"{page_no}&startDt={params[0]}&endDt={params[1]}&dtl_region={params_val[0]}&gender={params_val[1]}&age={params_val[2]}"
-            else:  # 서울(11), 경기(31)
-                return f"{page_no}&startDt={params[0]}&endDt={params[1]}&region={params_val[0]}&gender={params_val[1]}&age={params_val[2]}"
         if dtst_cd in {"data59", "data66", "data785", "data783", "data650"}:  # 국가통계포털(노령화지수_시도, 추계인구_시_군_구), 이달의_키워드, 대출_급상승_도서, 한국천문연구원_특일_정보
             return f"{params}"
         if dtst_cd == "data33":  # 측정소별_실시간_월평균_정보_조회 

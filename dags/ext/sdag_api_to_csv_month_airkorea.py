@@ -113,7 +113,7 @@ def api_to_csv_month_airkorea():
 
             retry_num = 0  # 데이터 없을 시 재시도 횟수
             repeat_num = 1  # 파라미터 길이만큼 반복 호출 횟수
-            page_index = 1  # 현재 페이지
+            page_no = 1  # 현재 페이지
             total_page = 1  # 총 페이지 수
             
             header = True   # 파일 헤더 모드
@@ -132,7 +132,7 @@ def api_to_csv_month_airkorea():
                 while repeat_num <= params_len:
                     
                     # 총 페이지 수만큼 반복 호출
-                    while page_index <= total_page:
+                    while page_no <= total_page:
                         
                         # 파라미터 길이만큼 호출 시 while 종료
                         if repeat_num > params_len:
@@ -146,19 +146,19 @@ def api_to_csv_month_airkorea():
                                 break
                             else:  # 파라미터 길이 != 1)
                                 # th_data_clct_contact_fail_hstry_log 에 입력
-                                CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, return_url, file_path, session, params_dict['param_list'][repeat_num - 1], page_index)
+                                CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, return_url, file_path, session, params_dict['param_list'][repeat_num - 1], page_no)
 
                                 # 총 페이지 수만큼 덜 돌았을 때
-                                if page_index < total_page:  # 다음 페이지 호출
+                                if page_no < total_page:  # 다음 페이지 호출
                                     retry_num = 0
-                                    page_index += 1
+                                    page_no += 1
                                     continue
                                 # 총 페이지 수만큼 다 돌고
-                                elif page_index == total_page:
+                                elif page_no == total_page:
                                     # 파라미터 길이만큼 덜 돌았을 때
                                     if repeat_num < params_len:
                                         retry_num = 0
-                                        page_index = 1
+                                        page_no = 1
                                         repeat_num += 1
                                         continue
                                     # 파라미터 길이만큼 다 돌았을 때
@@ -167,14 +167,14 @@ def api_to_csv_month_airkorea():
                                         break
 
                         # url 설정
-                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_index)}"
+                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
                         
                         # url 호출
                         response = requests.get(return_url, verify= False, timeout=3600)
                         response_code = response.status_code
 
                         # url 호출 시 메세지 설정
-                        header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_index, return_url, total_page, full_file_name, header, mode)
+                        header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_no, return_url, total_page, full_file_name, header, mode)
                         
                         if response_code == 200:
                             if tn_data_bsc_info.pvdr_sou_data_pvsn_stle == "json" and 'OpenAPI_ServiceResponse' not in response.text:  # 공공데이터포털 - HTTP 에러 제외
@@ -197,21 +197,21 @@ def api_to_csv_month_airkorea():
                             # 데이터 구분 컬럼, 값 추가
                             add_column = tn_data_bsc_info.data_se_col_two
                             add_column_dict = {}
-                            if dtst_cd in {"data778", "data781", "data782", "data784"}:
-                                add_column_dict = {add_column : params_dict['param_list'][repeat_num - 1]}
-                            if dtst_cd == "data780":  # 도서관_지역별_인기대출_도서_조회
-                                params_val = params_dict['param_list'][repeat_num - 1].split(',')
-                                add_column = add_column.split(',')
-                                add_column_dict = {add_column[0] : params_val[0], add_column[1] : params_val[1], add_column[2] : params_val[2], add_column[3] : params_dict['params'][0], add_column[4] : params_dict['params'][1]}
-                            if dtst_cd in {"data785", "data786"} or (pvdr_inst_cd == "pi00012" and dtst_cd not in {"data787", "data788"}):  # 이달의_키워드, 지역별 독서량_독서율, TAAS
-                                add_column_dict = {add_column : params_dict['params']}
+                            # if dtst_cd in {"data778", "data781", "data782", "data784"}:
+                            #     add_column_dict = {add_column : params_dict['param_list'][repeat_num - 1]}
+                            # if dtst_cd == "data780":  # 도서관_지역별_인기대출_도서_조회
+                            #     params_val = params_dict['param_list'][repeat_num - 1].split(',')
+                            #     add_column = add_column.split(',')
+                            #     add_column_dict = {add_column[0] : params_val[0], add_column[1] : params_val[1], add_column[2] : params_val[2], add_column[3] : params_dict['params'][0], add_column[4] : params_dict['params'][1]}
+                            # if dtst_cd in {"data785", "data786"} or (pvdr_inst_cd == "pi00012" and dtst_cd not in {"data787", "data788"}):  # 이달의_키워드, 지역별 독서량_독서율, TAAS
+                            #     add_column_dict = {add_column : params_dict['params']}
                             
                             # 컬럼 존재하지않는 경우 예외 처리
                             get_data_column_stmt = f"""
                                 SELECT column_name
                                 FROM information_schema.columns
                                 WHERE table_name = '{tn_data_bsc_info.dw_tbl_phys_nm}'
-                                AND column_name NOT IN ('data_crtr_pnttm','clct_sn','clct_pnttm','clct_log_sn','page_index')
+                                AND column_name NOT IN ('data_crtr_pnttm','clct_sn','clct_pnttm','clct_log_sn','page_no')
                                 ORDER BY ordinal_position
                             """
                             with session.begin() as conn:
@@ -230,7 +230,7 @@ def api_to_csv_month_airkorea():
                             # 데이터 존재 시
                             if result_size != 0:
                                 retry_num = 0  # 재시도 횟수 초기화
-                                if page_index == 1: # 첫 페이지일 때
+                                if page_no == 1: # 첫 페이지일 때
                                     # 페이징 계산
                                     total_count = int(result['total_count'])
                                     total_page = CallUrlUtil.get_total_page(total_count, result_size)
@@ -241,7 +241,7 @@ def api_to_csv_month_airkorea():
                                     mode = "w"
 
                                 # csv 파일 생성
-                                CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, result_json, header, mode, page_index)
+                                CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, result_json, header, mode, page_no)
 
                             # 데이터 결과 없을 경우
                             else:
@@ -264,15 +264,15 @@ def api_to_csv_month_airkorea():
                                 repeat_num += 1
                                 break
                             else:
-                                if page_index < total_page:
-                                    page_index += 1
-                                elif page_index == total_page:
+                                if page_no < total_page:
+                                    page_no += 1
+                                elif page_no == total_page:
                                     if params_len == 1:
                                         repeat_num += 1
                                         break
                                     elif params_len != 1:
                                         if repeat_num < params_len:
-                                            page_index = 1
+                                            page_no = 1
                                             repeat_num += 1
                                         else: repeat_num += 1
                                         break

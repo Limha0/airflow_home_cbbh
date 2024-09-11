@@ -109,7 +109,7 @@ def api_to_dw_hour():
 
             retry_num = 0  # 데이터 없을 시 재시도 횟수
             repeat_num = 1  # 파라미터 길이만큼 반복 호출 횟수
-            page_index = 1  # 현재 페이지
+            page_no = 1  # 현재 페이지
             total_page = 1  # 총 페이지 수
             header = False
             mode = "w"  # 파일 쓰기 모드 overwrite
@@ -119,7 +119,7 @@ def api_to_dw_hour():
                 while repeat_num <= params_len:
                     
                     # 총 페이지 수만큼 반복 호출
-                    while page_index <= total_page:
+                    while page_no <= total_page:
                         
                         # 파라미터 길이만큼 호출 시 while 종료
                         if repeat_num > params_len:
@@ -133,16 +133,16 @@ def api_to_dw_hour():
                                 break
                             else:  # 파라미터 길이 != 1)
                                 # 총 페이지 수만큼 덜 돌았을 때
-                                if page_index < total_page:  # 다음 페이지 호출
+                                if page_no < total_page:  # 다음 페이지 호출
                                     retry_num = 0
-                                    page_index += 1
+                                    page_no += 1
                                     continue
                                 # 총 페이지 수만큼 다 돌고
-                                elif page_index == total_page:
+                                elif page_no == total_page:
                                     # 파라미터 길이만큼 덜 돌았을 때
                                     if repeat_num < params_len:
                                         retry_num = 0
-                                        page_index = 1
+                                        page_no = 1
                                         repeat_num += 1
                                         continue
                                     # 파라미터 길이만큼 다 돌았을 때
@@ -151,14 +151,14 @@ def api_to_dw_hour():
                                         break
 
                         # url 설정
-                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_index)}"
+                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
                         
                         # url 호출
                         response = requests.get(return_url, verify= False)
                         response_code = response.status_code
 
                         # url 호출 시 메세지 설정
-                        header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_index, return_url, total_page, None, header, mode)
+                        header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_no, return_url, total_page, None, header, mode)
 
                         if response_code == 200 and 'NO_DATA' not in response.text:
                             if tn_data_bsc_info.pvdr_sou_data_pvsn_stle == "json":
@@ -173,7 +173,7 @@ def api_to_dw_hour():
                             # 데이터 존재 시
                             if result_size != 0:
                                 retry_num = 0  # 재시도 횟수 초기화
-                                if page_index == 1: # 첫 페이지일 때
+                                if page_no == 1: # 첫 페이지일 때
                                     # 페이징 계산
                                     total_count = int(result['total_count'])
                                     total_page = CallUrlUtil.get_total_page(total_count, result_size)
@@ -191,7 +191,7 @@ def api_to_dw_hour():
                                             'data_crtr_pnttm': th_data_clct_mastr_log.data_crtr_pnttm,
                                             'clct_pnttm': DateUtil.get_ymdhm(),
                                             'clct_log_sn': th_data_clct_mastr_log.clct_log_sn,
-                                            'page_index': page_index
+                                            'page_no': page_no
                                         } for result in result_json
                                     ]
                                     columns = ', '.join(bulk_data[0].keys())
@@ -213,15 +213,15 @@ def api_to_dw_hour():
                                 repeat_num += 1
                                 break
                             else:
-                                if page_index < total_page:
-                                    page_index += 1
-                                elif page_index == total_page:
+                                if page_no < total_page:
+                                    page_no += 1
+                                elif page_no == total_page:
                                     if params_len == 1:
                                         repeat_num += 1
                                         break
                                     elif params_len != 1:
                                         if repeat_num < params_len:
-                                            page_index = 1
+                                            page_no = 1
                                             repeat_num += 1
                                         else: repeat_num += 1
                                         break

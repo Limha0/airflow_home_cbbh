@@ -17,7 +17,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 @dag(
     dag_id="sdag_api_to_csv_year",
     schedule="5 0 20 1 *",
-    start_date=datetime(2022, 1, 1, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
+    start_date=datetime(2020, 1, 1, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
     render_template_as_native_obj=True,
@@ -53,7 +53,7 @@ def api_to_csv_year():
                                 AND LOWER(link_clct_mthd_dtl_cd) = 'open_api'
                                 AND LOWER(link_clct_cycle_cd) = 'year'
                                 AND link_ntwk_otsd_insd_se = '외부'
-                                AND LOWER(pvdr_site_cd) != 'ps00010' -- 국가통계포털 제외
+                                AND LOWER(pvdr_site_cd) != 'ps00010' -- 국가통계포털 제외 (한국천문연구원 , 지방재정365)
                             ORDER BY sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
@@ -113,7 +113,7 @@ def api_to_csv_year():
 
             retry_num = 0  # 데이터 없을 시 재시도 횟수
             repeat_num = 1  # 파라미터 길이만큼 반복 호출 횟수
-            page_index = 1  # 현재 페이지
+            page_no = 1  # 현재 페이지
             total_page = 1  # 총 페이지 수
             
             header = True   # 파일 헤더 모드
@@ -132,7 +132,7 @@ def api_to_csv_year():
                 while repeat_num <= params_len:
                     
                     # 총 페이지 수만큼 반복 호출
-                    while page_index <= total_page:
+                    while page_no <= total_page:
                         
                         # 파라미터 길이만큼 호출 시 while 종료
                         if repeat_num > params_len:
@@ -146,19 +146,19 @@ def api_to_csv_year():
                                 break
                             else:  # 파라미터 길이 != 1)
                                 # th_data_clct_contact_fail_hstry_log 에 입력
-                                CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, return_url, file_path, session, params_dict['param_list'][repeat_num - 1], page_index)
+                                CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, return_url, file_path, session, params_dict['param_list'][repeat_num - 1], page_no)
 
                                 # 총 페이지 수만큼 덜 돌았을 때
-                                if page_index < total_page:  # 다음 페이지 호출
+                                if page_no < total_page:  # 다음 페이지 호출
                                     retry_num = 0
-                                    page_index += 1
+                                    page_no += 1
                                     continue
                                 # 총 페이지 수만큼 다 돌고
-                                elif page_index == total_page:
+                                elif page_no == total_page:
                                     # 파라미터 길이만큼 덜 돌았을 때
                                     if repeat_num < params_len:
                                         retry_num = 0
-                                        page_index = 1
+                                        page_no = 1
                                         repeat_num += 1
                                         continue
                                     # 파라미터 길이만큼 다 돌았을 때
@@ -167,14 +167,14 @@ def api_to_csv_year():
                                         break
 
                         # url 설정
-                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_index)}"
+                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
                         
                         # url 호출
                         response = requests.get(return_url, verify= False)
                         response_code = response.status_code
 
                         # url 호출 시 메세지 설정
-                        header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_index, return_url, total_page, full_file_name, header, mode)
+                        header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_no, return_url, total_page, full_file_name, header, mode)
                         
                         if response_code == 200:
                             if tn_data_bsc_info.pvdr_sou_data_pvsn_stle == "json" and 'OpenAPI_ServiceResponse' not in response.text:  # 공공데이터포털 - HTTP 에러 제외
@@ -208,7 +208,7 @@ def api_to_csv_year():
                             # 데이터 존재 시
                             if result_size != 0:
                                 retry_num = 0  # 재시도 횟수 초기화
-                                if page_index == 1: # 첫 페이지일 때
+                                if page_no == 1: # 첫 페이지일 때
                                     # 페이징 계산
                                     total_count = int(result['total_count'])
                                     total_page = CallUrlUtil.get_total_page(total_count, result_size)
@@ -219,7 +219,7 @@ def api_to_csv_year():
                                     mode = "w"
 
                                 # csv 파일 생성
-                                CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, result_json, header, mode, page_index)
+                                CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, result_json, header, mode, page_no)
 
                             # 데이터 결과 없을 경우
                             else:
@@ -242,15 +242,15 @@ def api_to_csv_year():
                                 repeat_num += 1
                                 break
                             else:
-                                if page_index < total_page:
-                                    page_index += 1
-                                elif page_index == total_page:
+                                if page_no < total_page:
+                                    page_no += 1
+                                elif page_no == total_page:
                                     if params_len == 1:
                                         repeat_num += 1
                                         break
                                     elif params_len != 1:
                                         if repeat_num < params_len:
-                                            page_index = 1
+                                            page_no = 1
                                             repeat_num += 1
                                         else: repeat_num += 1
                                         break
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2024,9,1,15,00),
+        execution_date=datetime(2021,9,1,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

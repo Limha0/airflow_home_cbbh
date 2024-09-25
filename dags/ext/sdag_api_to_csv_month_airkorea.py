@@ -55,7 +55,7 @@ def api_to_csv_month_airkorea():
                                 AND link_ntwk_otsd_insd_se = '외부'
                                 AND LOWER(pvdr_site_cd) != 'ps00010' -- 국가통계포털 제외
                                 AND LOWER(pvdr_sou_data_pvsn_stle) != 'zip'
-	                            AND LOWER(dtst_cd) = 'data33' -- 측정소별_실시간_월평균_정보_조회
+	                            AND LOWER(dtst_cd) = 'data33' -- 대기오염_국가측정망_월평균_측정정보_조회
                             ORDER BY sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul").set(day=1)  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
@@ -293,7 +293,10 @@ def api_to_csv_month_airkorea():
                 fail_count = CallUrlUtil.get_fail_data_count(th_data_clct_mastr_log.clct_log_sn, session)
                 
                 if row_count == 0 and fail_count == 0 and retry_num < 5:
-                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_COMP, CONST.MSG_CLCT_COMP_NO_DATA, "n")
+                    if dtst_cd in {'data33'}:  # 대기오염_국가측정망_월평균_측정정보
+                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_ERROR, '원천 데이터 없음', "n")
+                    else:
+                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_COMP, CONST.MSG_CLCT_COMP_NO_DATA, "n")
                     raise AirflowSkipException()
                 elif fail_count != 0 or retry_num >= 5:
                     logging.info(f"call_url ::: {CONST.MSG_CLCT_ERROR_CALL}")
@@ -391,7 +394,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2023,10,2,15,00),
+        execution_date=datetime(2024,2,1,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

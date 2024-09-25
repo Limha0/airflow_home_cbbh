@@ -251,7 +251,7 @@ class CallUrlUtil:
             return f"{page_no}&base_date={params[0]}&base_time={params[1]}"
         if dtst_cd in {"data30", "data31"}:  # 대기오염정보_측정소정보, 대기오염정보_측정소별_실시간_측정정보_조회
             return f"{page_no}&stationName={param_list[repeat_num - 1]}"
-        if dtst_cd == "data32":  # 측정소별_실시간_일평균_정보_조회 
+        if dtst_cd == "data32":  # 대기오염_국가측정망_실시간_일평균_정보_조회 
             return f"{page_no}&msrstnName={param_list[repeat_num - 1]}&inqBginDt={params}&inqEndDt={params}"
         if pvdr_inst_cd == "pi00012" and dtst_cd != "data787":  # TAAS 교통사고분석시스템 - 사망교통사고정보 제외
             return f"{page_no}&searchYearCd={params}"
@@ -267,7 +267,7 @@ class CallUrlUtil:
             return ""
         if dtst_cd in {"data59", "data66", "data785", "data783", "data650"}:  # 국가통계포털(노령화지수_시도, 추계인구_시_군_구), 이달의_키워드, 대출_급상승_도서, 한국천문연구원_특일_정보
             return f"{params}"
-        if dtst_cd == "data33":  # 측정소별_실시간_월평균_정보_조회 
+        if dtst_cd == "data33":  # 대기오염_국가측정망_월평균_측정정보_조회 
             return f"{page_no}&msrstnName={param_list[repeat_num - 1]}&inqBginMm={params}&inqEndMm={params}"
         if dtst_cd == "data786":  # 지역별 독서량_독서율
             return f"{params[:4]}&month={params[-2:]}"

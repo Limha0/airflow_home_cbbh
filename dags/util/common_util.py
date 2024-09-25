@@ -57,6 +57,7 @@ class CommonUtil:
                         # th_data_clct_mastr_log 테이블에 insert
                         th_data_clct_mastr_log = ThDataClctMastrLog()
                         th_data_clct_mastr_log.dtst_cd = dtst_cd
+                        th_data_clct_mastr_log.dtst_dtl_cd = tn_data_bsc_info.dtst_dtl_cd
                         th_data_clct_mastr_log.clct_ymd = data_interval_end.strftime("%Y%m%d")
                         th_data_clct_mastr_log.clct_data_nm = tn_data_bsc_info.dtst_nm.replace(" ", "_")
                         # th_data_clct_mastr_log.gg_ctgry_cd = tn_data_bsc_info.pbadms_fld_lclsf_cd  # pbadms_fld_lclsf_cd( 행정분야대분류코드로 경산코드 분류 )

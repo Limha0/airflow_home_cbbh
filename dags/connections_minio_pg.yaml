@@ -1,7 +1,7 @@
 local_test_conn:
     conn_id: local_test_conn
     conn_type: Postgres
-    host: 172.18.248.250
+    host: 192.168.106.208
     schema: airflow3
     login: airflow
     password: airflow
@@ -19,7 +19,7 @@ local_test_conn:
 gsdpdb_db_conn:
     conn_id: gsdpdb_db_conn
     conn_type: Postgres
-    host: 192.168.1.31
+    host: 172.31.147.106
     schema: gsdpdb
     login: gsdpadmin
     password: gsdpmng01!@
@@ -33,13 +33,21 @@ ssh_inner_conn:
     password: gsdp2024!@#$
     port: 40022
 
-# ssh_inner_conn:
-#     conn_id: ssh_inner_conn
-#     conn_type: SFTP
-#     host: 192.168.1.249
-#     login: yjdpmng
-#     password: yjdp2023!@#$
-#     port: 40022
+ssh_db_conn:
+    conn_id: ssh_db_conn
+    conn_type: SFTP
+    host: 192.168.1.31
+    login: gsdpmng
+    password: gsdp2024!@#$
+    port: 40022
+
+ssh_hadoop_conn:
+    conn_id: ssh_hadoop_conn
+    conn_type: SSH
+    host: 192.168.1.23
+    login: gsdpmng
+    password: gsdp2024!@#$
+    port: 40022
 
 # yjdp_db_conn:
 #     conn_id: yjdp_db_conn

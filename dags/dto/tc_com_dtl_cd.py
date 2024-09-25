@@ -7,7 +7,7 @@ class TcCmmnDtlCd():
     STEP_CNTN = 'step_cntn'  # 접속단계
     STEP_CLCT = 'step_clct'  # 수집단계
     STEP_FILE_INSD_SEND = 'step_file_insd_send'  # 내부파일전송단계
-    STEP_FILE_STRGE_SEND = 'step_file_strge_send'  # 스토리지파일전송단계
+    STEP_FILE_STRGE_SEND = 'step_file_strge_send'  # 하둡파일전송단계
     STEP_DW_LDADNG = 'step_dw_ldadng'  # 데이터웨어하우스적재단계
     STEP_ADDR_REFINE = 'step_addr_refine'  # 주소정제단계
     STEP_DTMT_PRCSS = 'step_dtmt_prcss'  # 데이터마트가공단계
@@ -42,8 +42,10 @@ class TcCmmnDtlCd():
     MSG_FILE_STRGE_SEND_ERROR_UNZIP = '복호화 및 파일압축 해제 실패'
     MSG_FILE_STRGE_SEND_WORK_CHECK = '최종경로에 파일존재 확인 성공'
     MSG_FILE_STRGE_SEND_ERROR_CHECK = '최종경로에 파일 없음'
-    MSG_FILE_STRGE_SEND_COMP = '스토리지 전송 성공'
-    MSG_FILE_STRGE_SEND_ERROR_MOVE = '스토리지 전송 실패'
+    # MSG_FILE_STRGE_SEND_COMP = '스토리지 전송 성공'
+    MSG_FILE_STRGE_SEND_COMP = '하둡 전송 성공'
+    # MSG_FILE_STRGE_SEND_ERROR_MOVE = '스토리지 전송 실패'
+    MSG_FILE_STRGE_SEND_ERROR_MOVE = '하둡 전송 실패'
 
     MSG_DW_LDADNG_WORK = 'DW 적재 대상 조회 시작'
     MSG_DW_LDADNG_ERROR_FILE = 'DB서버에 파일 전송 실패'

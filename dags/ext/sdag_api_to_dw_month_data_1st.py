@@ -56,7 +56,6 @@ def api_dw_month_data_1st():
                             and data_rls_se_cd = 'un_othbc'
                             and pvdr_site_cd = 'ps00005'
                             order by sn
-                            ;
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")   # 실제 실행하는 날짜를 KST 로 설정

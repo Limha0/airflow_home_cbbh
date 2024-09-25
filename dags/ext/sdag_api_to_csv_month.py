@@ -56,7 +56,7 @@ def api_to_csv_month():
                                 AND LOWER(pvdr_inst_cd) != 'pi00002' -- 경기도시장상권진흥원
                                 AND LOWER(pvdr_sou_data_pvsn_stle) != 'zip'
                                 AND LOWER(dtst_cd) not in ('data50','data778','data779','data781','data782','data784') -- 후 수집 제외
-                                AND NOT LOWER(dtst_cd) = 'data33' -- 측정소별_실시간_월평균_정보_조회 제외
+                                AND NOT LOWER(dtst_cd) = 'data33' -- 대기오염_국가측정망_월평균_측정정보_조회 제외
                                 AND NOT LOWER(dtst_cd) in ('data919','data920','data921','data922','data1008','data1009','data1010','data1011','data1012','data1013','data1014') -- 경기도 용인, 공공데이터포털 제외
                             ORDER BY sn;
                             '''
@@ -404,7 +404,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2024,4,1,15,00),
+        execution_date=datetime(2024,5,1,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

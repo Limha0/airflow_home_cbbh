@@ -345,7 +345,7 @@ class CommonUtil:
                                     '''
                 # if dtst_cd == "data675":  # 신문고
                 #     select_bsc_info_stmt = f'''
-                #                             SELECT sn, a.dtst_cd, b.dtst_nm, dtst_dc, a.pvdr_site_cd, pvdr_inst_cd, pvdr_dept_nm, pvdr_pvsn_mthd_cd, pvdr_data_se_value_one, pvdr_data_se_value_two
+                #                             SELECT sn, a.dtst_cd, b.dtst_nm, dtst_dc, a.pvdr_site_cd, pvdr_inst_cd, pvdr_dept_nm, pvdr_pvsn_mthd_cd, pvdr_data_se_vl_one, pvdr_data_se_vl_two
                 #                                 , pvdr_updt_cycle_cd, pvdr_sou_data_pvsn_stle, link_ntwk_otsd_insd_se, link_pvdr_url, link_data_clct_url, link_db_id, link_tbl_phys_nm, link_dtst_se_cd, link_geom_utlz_yn, link_file_crt_yn
                 #                                 , link_file_merg_yn, link_file_extn, a.link_file_sprtr, link_yn, link_se_cd, clct_yn, link_clct_mthd, link_clct_mthd_dtl_cd, link_clct_cycle_cd, link_clct_job_id
                 #                                 , b.pbadms_fld_cd, b.gg_ctgry_cd, nonidntf_prcs_yn, encpt_yn, a.dw_load_yn, dw_load_mthd_cd, b.dw_tbl_phys_nm, addr_refine_yn, dtwrh_utlz_yn, data_rls_se_cd

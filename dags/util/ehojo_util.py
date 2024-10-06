@@ -2,14 +2,18 @@ import json
 import logging
 import jpype
 import os
-python_path = os.environ.get('PYTHONPATH', '/home/limhayoung/airflow/airflow_home')
-path = f"{python_path}/dags/jars/crypto.jar" #local test
 
 # path = f"{os.environ['PYTHONPATH']}/jars/crypto.jar"
+#  path = /jars/crypto.jar"
 
-jvm_path = os.path.join(os.environ['JAVA_HOME'], 'lib/server/libjvm.so')
-
+print(os.environ['PYTHONPATH'])
+path = f"{os.environ['PYTHONPATH']}/jars/crypto.jar"
+path2 = f"{os.environ['PYTHONPATH']}/jars"
 jpype.startJVM(classpath=path)
+print("!!!!!!!!!!!",path)
+print("asfdasdf",path2)
+print("@@@@@@@@", os.listdir(path))
+print("@@@@@@@@############", os.listdir(path2))
 jpkg = jpype.JPackage('com.indigo.util')
 EncryptionUtils = jpkg.EncryptionUtils()
 
@@ -26,7 +30,7 @@ class EhojoUtil:
             "ifId": interface_id
             , "tranId": str(EncryptionUtils.makeTxId(interface_id))
             , "transfGramNo": ""
-            , "trnmtInstCd": "YAS"  # 송신 기관 코드
+            , "trnmtInstCd": "GOS"  # 송신 기관 코드
             , "rcptnInstCd": "MOI"  # 수신 기관 코드
             , "trnmtInstSysCd": "EHJ"  # 송신 기관 시스템 코드
             , "rcptnInstSysCd": "EHJ"  # 수신 기관 시스템 코드

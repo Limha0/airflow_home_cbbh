@@ -107,7 +107,7 @@ def api_to_csv_ehojo():
             pvdr_site_cd = tn_data_bsc_info.pvdr_site_cd.lower()
             pvdr_inst_cd = tn_data_bsc_info.pvdr_inst_cd.lower()
             base_url = tn_data_bsc_info.link_data_clct_url
-            interface_id = tn_data_bsc_info.pvdr_data_se_value_one  # 인터페이스 ID
+            interface_id = tn_data_bsc_info.pvdr_data_se_vl_one  # 인터페이스 ID
             api_key_ehojo = kwargs['var']['value'].api_key_ehojo  # api key
             encrypt_key_ehojo = kwargs['var']['value'].encrypt_key_ehojo  # 암복호화 key
 

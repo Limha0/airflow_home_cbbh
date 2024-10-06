@@ -134,6 +134,8 @@ class CallUrlUtil:
                 return ["data"]
             if pvdr_inst_cd in {"pi00008", "pi00012", "pi00019"} or dtst_cd in {"data852", "data50", "data650", "data787", "data788", "data853"}:
                 return ["item"]
+            if dtst_cd == "data6" or pvdr_site_cd == "ps00029":
+                return ["data"]
             if pvdr_inst_cd in {"pi00004", "pi00022"} or dtst_cd in {"data5", "data22", "data26", "data51", "data4", "data678", "data704", "data706"}:
                 return ["items"]
             if dtst_cd in {"data778", "data780"}:
@@ -148,15 +150,17 @@ class CallUrlUtil:
                 return ["msgBody"]
             
         if keyword == "search_keyword":  # 데이터 건수 keySet
-            if dtst_cd in {"data919","data920","data922"}:
+            if dtst_cd in {"data919","data920","data922"}: # 공공데이터 포털 (목록/파일/오픈API)
                 return "matchCount"
             if pvdr_inst_cd in {"pi00004", "pi00012", "pi00022"} or (pvdr_inst_cd == "pi00008" and dtst_cd == "data49") or (pvdr_inst_cd == "pi00009" and dtst_cd != "data6") \
                 or dtst_cd in {"data852", "data22", "data26", "data51", "data4", "data650", "data678", "data704", "data706", "data787", "data788", "data853"}:
                 return "totalCount"
-            if dtst_cd in {"data778", "data777"}:
+            if dtst_cd in {"data777"}: # 정보나루_정보공개_도서관조회
                 return "numFound"
-            if dtst_cd == "data780":
-                return "resultNum"
+            # if dtst_cd == "data780":  #정보나루_도서관_지역별_인기대출_도서
+            #     return "resultNum"
+            if pvdr_site_cd == "ps00029":
+                return "totalCnt"
         return ""
 
     # url에 설정하는 파라미터
@@ -203,6 +207,19 @@ class CallUrlUtil:
             params_dict["param_list"] = param_list
         if dtst_cd == "data785":  # 이달의_키워드
             params_dict["params"] = yyyymm_dash
+        if dtst_cd == "data695":  # 인사(인사_분류코드정보_송신)
+            params_dict["params"] = "ALL"
+        if dtst_cd == "data696":  # 인사(초과근무정산내역_정보송신)
+            params_dict["params"] = [start_date_3month.strftime("%Y%m%d"), end_date.set(day=1).add(days=-1).strftime("%Y%m%d")]
+            params_dict["param_list"] = param_list
+        if dtst_cd == "data851":  # 인사(인사_임용발령정보 송신)
+            params_dict["params"] = [start_date.strftime("%Y%m%d"), end_date.set(day=1).add(days=-1).strftime("%Y%m%d")]
+        if dtst_cd in {"data697", "data698"}:  # 인사(출장정보_송신, 연가신청목록_정보송신)
+            params_dict["params"] = today
+        if dtst_cd == "data700":  # 인사(연가외_휴가신청목록_정보송신)
+            params_dict["params"] = today
+            param_list = [2,3,4,5]
+            params_dict["param_list"] = param_list  # 주의 연가 외 휴가목록(1은 안됨)
         
  
         

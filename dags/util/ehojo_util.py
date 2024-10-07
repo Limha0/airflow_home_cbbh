@@ -3,19 +3,38 @@ import logging
 import jpype
 import os
 
-# path = f"{os.environ['PYTHONPATH']}/jars/crypto.jar"
-#  path = /jars/crypto.jar"
+import configparser
 
-print(os.environ['PYTHONPATH'])
+# ConfigParser 객체 생성
+config = configparser.ConfigParser()
+
+# properties 파일 읽기
+#config.read('config.properties')
+config.read('/opt/airflow/dags/config.properties') #prod
+
+# 환경 변수 설정
+os.environ['PYTHONPATH'] = config.get('settings', 'PYTHONPATH')
+os.environ['JAVA_HOME'] = config.get('settings', 'JAVA_HOME')
+
+# PATH는 기존 값과 합쳐서 설정
+os.environ['PATH'] = f"{config.get('settings', 'PATH')}:{os.environ['PATH']}"
+
+# JAR 파일 경로 설정
 path = f"{os.environ['PYTHONPATH']}/jars/crypto.jar"
-path2 = f"{os.environ['PYTHONPATH']}/jars"
+
+# JVM 시작 (classpath에 설정한 JAR 경로 추가)
 jpype.startJVM(classpath=path)
-print("!!!!!!!!!!!",path)
-print("asfdasdf",path2)
-print("@@@@@@@@", os.listdir(path))
-print("@@@@@@@@############", os.listdir(path2))
+
+# Java 패키지 및 클래스 로드
 jpkg = jpype.JPackage('com.indigo.util')
 EncryptionUtils = jpkg.EncryptionUtils()
+
+# 결과 확인
+# logging.info(f"PYTHONPATH: {os.environ['PYTHONPATH']}")
+# logging.info(f"JAVA_HOME: {os.environ['JAVA_HOME']}")
+# logging.info(f"PATH: {os.environ['PATH']}")
+# logging.info(f"JAR 파일 경로: {path}")
+
 
 class EhojoUtil:
 

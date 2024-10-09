@@ -20,6 +20,7 @@ class TcCmmnDtlCd():
     # stts_msg
     MSG_CNTN_WORK = '수집대상 조회 시작'
     MSG_CNTN_ERROR = '연계DB접속정보 조회 실패'
+    MSG_CNTN_ERROR_SFTP = 'SFTP 연결 실패'
     MSG_CNTN_COMP = '수집대상 조회 완료'
 
     MSG_CLCT_WORK = '수집파일경로 생성 시작'

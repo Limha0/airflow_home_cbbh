@@ -1,6 +1,7 @@
 import logging
+import pendulum
 
-from pendulum import datetime, from_format
+from pendulum import datetime, now
 from airflow.decorators import dag, task, task_group
 from util.common_util import CommonUtil
 from dto.tn_data_bsc_info import TnDataBscInfo
@@ -13,15 +14,16 @@ from sqlalchemy.orm import sessionmaker
 from airflow.exceptions import AirflowSkipException
 
 @dag(
-    dag_id="sdag_rdb_bis_month",
-    schedule="@monthly",
+    dag_id="sdag_rdb_to_csv_int_day",
+    schedule="0 1,5 * * *",
     start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
     render_template_as_native_obj=True,
-    tags=["rdb_bis", "month", "int"],
+    # default_timezone=pendulum.timezone('Asia/Seoul'),  # 타임존 설정
+    tags=["db_to_csv", "day", "int"],
 )
-def sdag_rdb_bis():
+def rdb_to_csv():
 
     # PostgresHook 객체 생성
     pg_hook = PostgresHook(postgres_conn_id='gsdpdb_db_conn')
@@ -40,21 +42,22 @@ def sdag_rdb_bis():
         """
         # 수집 대상 기본 정보 조회
         select_bsc_info_stmt = '''
-                            SELECT *, (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND pvdr_site_cd = dtl_cd) AS pvdr_site_nm
-                            FROM tn_data_bsc_info
-                            WHERE 1=1
-                                AND LOWER(clct_yn) = 'y'
-                                AND LOWER(link_yn) = 'y'
-                                AND LOWER(link_clct_mthd_dtl_cd) = 'rdb'
-                                AND LOWER(link_clct_cycle_cd) = 'month'
-                                AND link_ntwk_otsd_insd_se = '내부'
-                                --AND LOWER(pvdr_inst_cd) = 'pi00001'
-                                AND LOWER(pvdr_site_cd) = 'ps00003'
-                                and dtst_cd not in ('data1020') --test
-                            ORDER BY sn
-                            '''
-        data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
+                                SELECT *, (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND pvdr_site_cd = dtl_cd) AS pvdr_site_nm
+                                FROM tn_data_bsc_info
+                                WHERE 1=1
+                                    AND LOWER(clct_yn) = 'y'
+                                    AND LOWER(link_yn) = 'y'
+                                    AND LOWER(link_clct_mthd_dtl_cd) = 'rdb'
+                                    AND LOWER(link_clct_cycle_cd) = 'day'
+                                    AND link_ntwk_otsd_insd_se = '내부' --주민요약DB
+                                ORDER BY sn
+                                '''
+        # data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
+        data_interval_start = kwargs['data_interval_start'].in_timezone(pendulum.timezone("Asia/Seoul"))
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
+        logging.info(f"data_interval_start: {data_interval_start}, data_interval_end: {data_interval_end}")
+        if now().strftime("%H") == '05':
+            data_interval_start = now().add(days=-1)
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
         if collect_data_list == []:
             logging.info(f"select_collect_data_fail_info ::: 수집 대상없음 프로그램 종료")
@@ -65,7 +68,6 @@ def sdag_rdb_bis():
     def db_to_csv_process(collect_data_list):
         import os
         import pandas as pd
-        print("collect_data_list:", collect_data_list)
         
         @task
         def get_db_connection_url(collect_data_list, **kwargs):
@@ -96,7 +98,6 @@ def sdag_rdb_bis():
                 with engine.connect() as conn:
                     for dict_row in conn.execute(select_database_info_stmt).mappings():
                         tn_db_cntn_info = TnDBCntnInfo(**dict_row)
-                        print("####",select_database_info_stmt)
             except Exception as e:
                 CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_ERROR, CONST.MSG_CNTN_ERROR, "n")
                 logging.info(f"get_db_connection_url Exception::: {e}")
@@ -127,8 +128,7 @@ def sdag_rdb_bis():
             return: file_path: tn_clct_file_info 테이블에 저장할 파일 경로
             """
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
             file_path = CommonUtil.create_directory(collect_data_list, session, data_interval_end, final_file_path, "n")
             return file_path
 
@@ -147,8 +147,7 @@ def sdag_rdb_bis():
             tn_data_bsc_info = TnDataBscInfo(**collect_data_list['tn_data_bsc_info'])
             tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
             log_full_file_path = collect_data_list['log_full_file_path']
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
             full_file_path = final_file_path + file_path
 
             # 연계 DB SQL문
@@ -157,13 +156,20 @@ def sdag_rdb_bis():
             dw_load_mthd_cd = tn_data_bsc_info.dw_load_mthd_cd.lower()
             link_file_crt_yn = tn_data_bsc_info.link_file_crt_yn.lower()  # csv 파일 생성 여부
             link_file_sprtr = tn_data_bsc_info.link_file_sprtr
+
+            dtst_cd = tn_data_bsc_info.dtst_cd
             
             select_db_stmt = f'''SELECT a.*
                                     ,'{data_crtr_pnttm}' data_crtr_pnttm
                                     ,'{DateUtil.get_ymdhm()}' clct_pnttm
                                     ,'{th_data_clct_mastr_log.clct_log_sn}' clct_log_sn
                                 FROM {link_tbl_phys_nm} a '''
-            
+
+            if dtst_cd == 'data794':  # 주민요약DB_관내전입이력정보
+                select_db_stmt += f" WHERE inport_ymd = '{data_crtr_pnttm}'"
+            if dtst_cd == 'data795':  # 주민요약DB_관내전출이력정보
+                select_db_stmt += f" WHERE export_ymd = '{data_crtr_pnttm}'"
+
             if dw_load_mthd_cd == '3month_change':
                 select_db_stmt += " WHERE to_date(indt, 'YYYYMMDDHH24MISS') BETWEEN add_months(trunc(sysdate, 'mm'), -3) AND sysdate"
             logging.info(f"create_csv_file select_db_stmt::: {' '.join(select_db_stmt.split())}")
@@ -185,26 +191,8 @@ def sdag_rdb_bis():
                 df = pd.read_sql_query(select_db_stmt, db_engine)
                 df = df.replace("\n"," ", regex=True).replace("\r\n"," ", regex=True).replace("\r"," ", regex=True).apply(lambda x: (x.str.strip() if x.dtypes == 'object' and x.str._inferred_dtype == 'string' else x), axis = 0)  # 개행문자 제거, string 양 끝 공백 제거
                 df.index += 1
-                df.to_csv(file_name, sep = link_file_sprtr, header = True, index_label= "clct_sn", encoding='utf-8-sig')
+                df.to_csv(file_name, sep = tn_data_bsc_info.link_file_sprtr, header = True, index_label= "clct_sn", mode='w', encoding='utf-8-sig')
                 full_file_name = full_file_path + file_name
-
-                if dtst_cd == "data803":
-                    # csv 한글 헤더를 DW 영문 컬럼명으로 변경
-                    get_data_column_stmt = f"""
-                                SELECT column_name
-                                FROM information_schema.columns
-                                WHERE table_name = '{tn_data_bsc_info.dw_tbl_phys_nm}'
-                                ORDER BY ordinal_position
-                            """
-                    with session.begin() as conn:
-                        dw_column_dict = []  # DW 컬럼명
-                        for dict_row in conn.execute(get_data_column_stmt).all():
-                            dw_column_dict.append(dict_row[0])
-
-                    if dw_column_dict != []:
-                        df = pd.read_csv(full_file_name, sep=link_file_sprtr)
-                        df.columns = dw_column_dict
-                        df.to_csv(full_file_name, index= False, sep=link_file_sprtr, encoding='utf-8-sig')
 
                 # 파일 사이즈 확인
                 if os.path.exists(full_file_name):
@@ -240,7 +228,7 @@ def sdag_rdb_bis():
     collect_data_list = insert_collect_data_info()
     db_to_csv_process.expand(collect_data_list = collect_data_list)
 
-dag_object = sdag_rdb_bis()
+dag_object = rdb_to_csv()
 
 # only run if the module is the main program
 if __name__ == "__main__":
@@ -249,7 +237,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2023,10,19,15,00,00),
+        execution_date=datetime(2024,1,30,15,00,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

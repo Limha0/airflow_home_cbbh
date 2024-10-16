@@ -16,6 +16,6 @@ class TnDBCntnInfo(Base):
     sid = Column(String)
     ip = Column(String)
     port = Column(String)
-    usid = Column(String)
+    user_id = Column(String)
     pswd = Column(String)
     driver_class_nm = Column(String)

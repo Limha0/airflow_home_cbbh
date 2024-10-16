@@ -45,6 +45,9 @@ class CommonUtil:
                     else:
                         data_crtr_pnttm = CommonUtil.set_data_crtr_pnttm(tn_data_bsc_info.link_clct_cycle_cd, data_interval_start)
 
+                    if dtst_cd in {"data762", "data763"}:  # 부서정보, 직원정보 예외
+                        file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_")
+
                     file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_") + "_" + data_crtr_pnttm
                     
                     # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB 로그 존재 확인
@@ -60,8 +63,6 @@ class CommonUtil:
                         th_data_clct_mastr_log.dtst_dtl_cd = tn_data_bsc_info.dtst_dtl_cd
                         th_data_clct_mastr_log.clct_ymd = data_interval_end.strftime("%Y%m%d")
                         th_data_clct_mastr_log.clct_data_nm = tn_data_bsc_info.dtst_nm.replace(" ", "_")
-                        # th_data_clct_mastr_log.gg_ctgry_cd = tn_data_bsc_info.pbadms_fld_lclsf_cd  # pbadms_fld_lclsf_cd( 행정분야대분류코드로 경산코드 분류 )
-                        # th_data_clct_mastr_log.pbadms_fld_cd = tn_data_bsc_info.pbadms_fld_cd
                         th_data_clct_mastr_log.data_crtr_pnttm = data_crtr_pnttm
                         th_data_clct_mastr_log.reclect_flfmt_nmtm = 0
                         th_data_clct_mastr_log.step_se_cd = CONST.STEP_CNTN
@@ -72,22 +73,12 @@ class CommonUtil:
                         th_data_clct_mastr_log.link_file_sprtr = tn_data_bsc_info.link_file_sprtr
                         conn.add(th_data_clct_mastr_log)
                         conn.get(ThDataClctMastrLog, th_data_clct_mastr_log.clct_log_sn)
-                    # # 불필요한 키 제거
-                    # th_data_clct_mastr_log = ThDataClctMastrLog()
-                    # th_data_clct_mastr_log.dtst_cd = dtst_cd
-                    # th_data_clct_mastr_log.clct_ymd = data_interval_end.strftime("%Y%m%d")
-                    # th_data_clct_mastr_log.clct_data_nm = tn_data_bsc_info.dtst_nm.replace(" ", "_")
-                    # # th_data_clct_mastr_log.pbadms_fld_cd = tn_data_bsc_info.pbadms_fld_cd
-                    # th_data_clct_mastr_log.data_crtr_pnttm = data_crtr_pnttm
-                    # th_data_clct_mastr_log.reclect_flfmt_nmtm = 0
-                    # th_data_clct_mastr_log.step_se_cd = CONST.STEP_CNTN
-                    # th_data_clct_mastr_log.stts_cd = CONST.STTS_WORK
-                    # th_data_clct_mastr_log.stts_dt = now(tz="UTC")
-                    # th_data_clct_mastr_log.stts_msg = CONST.MSG_CNTN_WORK
-                    # th_data_clct_mastr_log.crt_dt = now(tz="UTC")
-                    # th_data_clct_mastr_log.link_file_sprtr = tn_data_bsc_info.link_file_sprtr
-                    # conn.add(th_data_clct_mastr_log)
-                    # conn.get(ThDataClctMastrLog, th_data_clct_mastr_log.clct_log_sn)
+                
+                    # 새올행정주민요약DB - 내부파일전송단계 성공, 하둡파일전송단계, 데이터웨어하우스적재단계 로그 여부 조회
+                    if dtst_cd in {"data792","data793","data794", "data795"} and ((th_data_clct_mastr_log.step_se_cd == CONST.STEP_FILE_INSD_SEND and th_data_clct_mastr_log.stts_cd == CONST.STTS_COMP)\
+                        or th_data_clct_mastr_log.step_se_cd == CONST.STEP_FILE_STRGE_SEND or th_data_clct_mastr_log.step_se_cd == CONST.STEP_DW_LDADNG):
+                        logging.info(f"insert_collect_data_info ::: 성공 로그 존재, 재수집 실행 종료")
+                        continue
 
                     # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB - th_data_clct_stts_hstry_log 입력위한 th_data_clct_mastr_log 설정
                     if dtst_cd in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794"}:
@@ -164,6 +155,7 @@ class CommonUtil:
         """
         tn_clct_file_info.clct_log_sn = th_data_clct_mastr_log.clct_log_sn
         tn_clct_file_info.dtst_cd = th_data_clct_mastr_log.dtst_cd
+        tn_clct_file_info.dtst_dtl_cd = th_data_clct_mastr_log.dtst_dtl_cd
         tn_clct_file_info.clct_ymd = th_data_clct_mastr_log.clct_ymd
         tn_clct_file_info.clct_data_nm = th_data_clct_mastr_log.clct_data_nm
         tn_clct_file_info.data_crtr_pnttm = th_data_clct_mastr_log.data_crtr_pnttm
@@ -248,17 +240,17 @@ class CommonUtil:
             th_data_clct_mastr_log = ThDataClctMastrLog(**collect_data_dict['th_data_clct_mastr_log'])
             log_full_file_path = collect_data_dict['log_full_file_path']
 
-            # 수집파일경로 생성 시작 로그 update
             CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CNTN, CONST.STTS_COMP, CONST.MSG_CNTN_COMP, reclect_yn)
             # 수집파일경로생성 시작 로그 update
             if dtst_cd not in {'data852', 'data4', 'data31', 'data855', 'data799'}:  # 기상청_단기예보_시간, 5분_소통정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 센서측정정보 제외
                 CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_WORK, CONST.MSG_CLCT_WORK, reclect_yn)
 
-            file_path, full_file_path = CommonUtil.set_file_path(root_collect_file_path, data_interval_end, tn_data_bsc_info)
             # 파일 경로 설정
-            # if dtst_cd == 'data1':  # 부서정보, 직원정보
-            #     # file_path = full_file_path = root_collect_file_path
-            #     file_path, full_file_path = CommonUtil.set_file_path(root_collect_file_path, data_interval_end, tn_data_bsc_info)
+            if dtst_cd in {'data762', 'data763'}:  # 부서정보, 직원정보
+                file_path = full_file_path = root_collect_file_path
+            else:
+                file_path, full_file_path = CommonUtil.set_file_path(root_collect_file_path, data_interval_end, tn_data_bsc_info)
+
         try:
             if link_file_crt_yn == 'y' or tn_data_bsc_info.pvdr_site_cd == 'ps00010':  # 국가통계포털 download
                 # 수집 폴더 경로 생성

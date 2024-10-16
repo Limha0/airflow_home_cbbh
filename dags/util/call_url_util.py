@@ -1,9 +1,9 @@
 import os
 import pandas as pd
-import requests
 import logging
 from math import trunc
 import json
+import re
 
 from util.date_custom_util import DateUtil
 from util.file_util import FileUtil
@@ -22,8 +22,8 @@ class CallUrlUtil:
         search_result = {}
         result_json_array = []  # list_keywords 에 해당하는 데이터 리스트
         total_count = 0
-        # ignore_column = CallUrlUtil.get_ignore_column(dtst_cd)
-        result_json_array = CallUrlUtil.recursive_json_for_keyword(json_data, list_keywords, search_keyword, search_result, result_json_array, dtst_cd)
+        ignore_column = CallUrlUtil.get_ignore_column(dtst_cd)
+        result_json_array = CallUrlUtil.recursive_json_for_keyword(json_data, list_keywords, search_keyword, search_result, result_json_array,ignore_column, add_column, dtst_cd)
 
         if len(result_json_array) != 0:
             if search_keyword == "":
@@ -31,14 +31,25 @@ class CallUrlUtil:
             else:
                 total_count = search_result.get(search_keyword)
 
-            # if dtst_cd == "data677":  # 새올_민원통계
-            #     total_count = result_json_array[0]['tot_cnt']
+            if dtst_cd == "data677":  # 새올_민원통계
+                total_count = result_json_array[0]['tot_cnt']
         return {
             'result_json_array' : result_json_array,
             'total_count' : total_count
             }
     
-    def recursive_json_for_keyword(json_data, list_keywords, search_keyword, search_result, result_json_array,dtst_cd):
+    def get_ignore_column(dtst_cd):
+        """
+        dtst_cd별 수집하지 않을 key 설정
+        params: dtst_cd
+        return: ignore_column
+        """
+        ignore_column = {
+                        "data778" : "callNumbers",
+                        }.get(dtst_cd, "")
+        return ignore_column
+    
+    def recursive_json_for_keyword(json_data, list_keywords, search_keyword, search_result, result_json_array,ignore_column, add_column,dtst_cd):
         # # json 배열인 경우
         if isinstance(json_data, list):
             for item in json_data:
@@ -48,11 +59,11 @@ class CallUrlUtil:
                     if (list_keywords == ""):
                         temp_dict = {}
                         for key, values in item.items():
-                            temp_dict = CallUrlUtil.parsing_value(temp_dict, key, values)
+                            temp_dict = CallUrlUtil.parsing_value(temp_dict, key, values, ignore_column)
                         result_json_array.append(temp_dict)
                     else:
                         # 재귀적으로 하위 객체에서 데이터를 추출하여 배열에 담음
-                        CallUrlUtil.recursive_json_for_keyword(item, list_keywords, search_keyword, search_result, result_json_array, dtst_cd)
+                        CallUrlUtil.recursive_json_for_keyword(item, list_keywords, search_keyword, search_result, result_json_array,ignore_column, add_column, dtst_cd)
         # json 객체인 경우
         if isinstance(json_data, dict):
             # list_keyword 에 해당하는 경우
@@ -67,15 +78,15 @@ class CallUrlUtil:
                         # if dtst_cd != "data783":
                             temp_dict = {}
                             for key, values in value.items():
-                                # if ignore_column == key:
-                                #     continue
-                                temp_dict = CallUrlUtil.parsing_value(temp_dict, key, values)
+                                if ignore_column == key:
+                                    continue
+                                temp_dict = CallUrlUtil.parsing_value(temp_dict, key, values,ignore_column)
                             result_json_array.append(temp_dict)
                     elif isinstance(value, list):  # 배열일 경우
                         for item in value:
                             temp_dict = {}
                             for key, values in item.items():
-                                temp_dict = CallUrlUtil.parsing_value(temp_dict, key, values)
+                                temp_dict = CallUrlUtil.parsing_value(temp_dict, key, values,ignore_column)
                                 # if len(list_keywords) > 1:  # 도서관별 인기대출도서 통합 예외 (list_keywords 컬럼 구분 값 추가), 신문고 민원
                                     # add_dict = {add_column : list_keyword}
                                     # temp_dict.update(add_dict)
@@ -83,13 +94,13 @@ class CallUrlUtil:
             # 재귀적으로 하위 객체에서 데이터를 추출하여 배열에 담음
             for key, value in json_data.items():
                 if (isinstance(value, dict) or isinstance(value, list)) and (key not in list_keywords):
-                    CallUrlUtil.recursive_json_for_keyword(value, list_keywords, search_keyword, search_result, result_json_array, dtst_cd)
+                    CallUrlUtil.recursive_json_for_keyword(value, list_keywords, search_keyword, search_result, result_json_array,ignore_column, add_column, dtst_cd)
                 # search_keyword 에 해당하는 값 search_result 에 담기
                 if search_keyword == key:
                     search_result[key] = value
         return result_json_array
     
-    def parsing_value(temp_dict, key, values):
+    def parsing_value(temp_dict, key, values, ignore_column):
         """
         list_keyword에 해당하는 데이터 내 json 형식이 존재하는 경우 parsing
         parmas: temp_dict, key, values, ignore_column
@@ -101,8 +112,8 @@ class CallUrlUtil:
                 # values 가 dict인 경우 "key" : [ {'dict_key': dict_value } ]
                 if isinstance(list_value, dict):
                     for dict_key, dict_value in list_value.items():
-                        # if ignore_column == dict_key:
-                        #     continue
+                        if ignore_column == dict_key:
+                            continue
                         # dict_value가 dict 인 경우 "key" : [ {'dict_key': {'key1':'val1', 'key2':'val2'} ]
                         if isinstance(dict_value, dict):
                             temp_dict.update(dict_value)  # value에 dict_value update
@@ -146,6 +157,8 @@ class CallUrlUtil:
                 return ["keyword"]
             if dtst_cd in {"data781", "data782", "data786"}: # 정보나루 - 지역별 독서량_독서율
                 return ["result"]
+            if dtst_cd in {"data677", "data762", "data763"}: # 새올 민원 , 직원정보, 부서정보
+                return ["list"]
             if dtst_cd in {"datadata1011"}:
                 return ["msgBody"]
             
@@ -185,7 +198,7 @@ class CallUrlUtil:
         end_date_dash = end_date.set(day=1).add(days=-1).strftime("%Y-%m-%d")
         date_list = DateUtil.get_date_list(start_date_3month, end_date)  # 3month_date_list - 지방재정365(계약현황, 세부사업별_세출현황)
 
-        param_list = CallUrlUtil.set_param_list(dtst_cd,kwargs)
+        param_list = CallUrlUtil.set_param_list(dtst_cd, rfrnc_phys_tbl_nm, session, rfrnc_col_nm, kwargs)
         params_dict = {}
 
         # 파라미터 존재 시
@@ -230,9 +243,9 @@ class CallUrlUtil:
             params_len = len(params_dict.get("param_list"))
         return params_dict, params_len
 
-    def set_param_list(dtst_cd, kwargs):
+    def set_param_list(dtst_cd, rfrnc_phys_tbl_nm, session, rfrnc_col_nm, kwargs):
         """
-        param_list 설정
+        param_list 설정requests
         params: dtst_cd, rfrnc_phys_tbl_nm 참조할 테이블명, session, rfrnc_col_nm 참조할 컬럼명, kwargs
         return: param_list
         """
@@ -241,6 +254,75 @@ class CallUrlUtil:
         for key in param_lists.keys():
             if dtst_cd == key:
                 param_list = param_lists.get(key)
+
+        if rfrnc_col_nm != None and rfrnc_col_nm != '' and rfrnc_phys_tbl_nm != None and rfrnc_phys_tbl_nm != '':
+            column_val = rfrnc_col_nm.split(',')
+            for i in range(len(column_val)):
+                globals()['column' + str(i + 1)] = column_val[i]
+            column1 = globals()['column1']
+
+            select_seq_stmt = f"""
+                SELECT STRING_AGG("{column1}",',') "{column1}"
+                FROM {rfrnc_phys_tbl_nm}
+            """
+            select_data_crtr_pnttm_stmt = f"""
+                        WHERE data_crtr_pnttm = (
+                            SELECT data_crtr_pnttm 
+                            FROM {rfrnc_phys_tbl_nm}
+                            GROUP BY data_crtr_pnttm
+                            ORDER BY data_crtr_pnttm DESC
+                            LIMIT 1)
+                        """
+            if dtst_cd in {"data762", "data778", "data781", "data782", "data784", "data856"}:
+                # 직원정보 - 부서정보 dep_code 조회
+                # 도서관_장서_대출_조회, 도서관별 대출반납추이_일단위, 도서관별 대출반납추이_시간단위, 도서관별_인기대출도서_통합 - 정보 공개 도서관 libCode 조회
+                select_seq_stmt += f"""
+                                    {select_data_crtr_pnttm_stmt}
+                                    """
+            if dtst_cd == "data50":  # 상세_정보조회
+                # 사업장_정보조회_서비스 seq 조회
+                # 가장 최근 data_crtr_pnttm, datacrtym
+                column2 = globals()['column2']
+                select_seq_stmt += f"""
+                                    {select_data_crtr_pnttm_stmt}
+                                    AND "{column2}" = (
+                                        SELECT "{column2}"
+                                        FROM {rfrnc_phys_tbl_nm}
+                                        GROUP BY "{column2}"
+                                        ORDER BY "{column2}" DESC
+                                        LIMIT 1)
+                                    """
+            if dtst_cd == "data696":  # 초과근무정산내역_정보송신
+                # 부서정보 dep_code 조회
+                select_seq_stmt = f"""
+                                    SELECT STRING_AGG(SUBSTRING("{column1}", 1, 9),',') "{column1}"
+                                    FROM {rfrnc_phys_tbl_nm}
+                                    {select_data_crtr_pnttm_stmt}
+                                    """
+            if dtst_cd == "data779":  # 도서_상세_조회
+                # 도서관별 장서/대출 데이터 isbn13 조회
+                # 가장 최근 data_crtr_pnttm으로 GROUP BY isbb13
+                select_seq_stmt = f"""
+                                    SELECT STRING_AGG({column1},',') {column1}
+                                    FROM (
+                                        SELECT {column1}
+                                        FROM {rfrnc_phys_tbl_nm}
+                                        {select_data_crtr_pnttm_stmt}
+                                        GROUP BY {column1}
+                                    ) b
+                                    """
+            try:
+                with session.begin() as conn:
+                    for dict_row in conn.execute(select_seq_stmt).all():
+                        # param_list = dict_row[0].split(',')
+                        # dict_row[0]이 None이 아닌지 확인
+                        if dict_row[0] is not None:
+                            param_list = dict_row[0].split(',')
+                        else:
+                            param_list = []  # None인 경우 빈 리스트 할당
+            except Exception as e:
+                logging.info(f"set_params Exception::: {e}")
+                raise e
 
         if dtst_cd == "data780":  # 도서관_지역별_인기대출_도서_조회
             list1 = [11,31,31260]
@@ -291,7 +373,8 @@ class CallUrlUtil:
         else:
             return f"{page_no}"
         #     return f"{param_list[repeat_num - 1]}&pageNo={page_no}"
-   
+
+
 
     def get_total_page(total_count, result_size):
         """
@@ -420,3 +503,14 @@ class CallUrlUtil:
             for row in conn.execute(select_stmt).first():
                 fail_count = row
         return fail_count
+    
+    def anonymize(value):
+        """
+        신문고, 새올_민원통계 데이터 비식별 처리
+        """
+        # 값이 있는 경우에만 비식별 처리를 진행
+        if value:
+            # 문자열의 첫 번째 문자제외 전부 '*'로 대체
+            return value[0] + re.sub(r'\S', '*', value[1:])
+        else:
+            return value

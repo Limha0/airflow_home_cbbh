@@ -13,6 +13,7 @@ class TnClctFileInfo(Base):
     sn = Column(Integer, primary_key=True)
     clct_log_sn = Column(Integer)
     dtst_cd = Column(String)
+    dtst_dtl_cd = Column(String)
     clct_ymd = Column(String)
     clct_data_nm = Column(String)
     data_crtr_pnttm = Column(String)

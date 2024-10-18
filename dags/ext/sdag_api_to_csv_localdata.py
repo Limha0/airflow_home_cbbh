@@ -56,7 +56,7 @@ def api_to_csv_localdata():
                                     AND link_dtst_se_cd ='set'  -- 연계데이터셋구분코드
                                 AND link_ntwk_otsd_insd_se = '외부'
                                 AND LOWER(dtst_cd) = 'data648' -- 지방행정인허가
-                                order by dtst_dtl_cd ;
+                                order by dtst_dtl_cd 
                                 '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul").set(day=1)  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
@@ -72,12 +72,11 @@ def api_to_csv_localdata():
                     # th_data_clct_mastr_log 테이블에 insert
                     th_data_clct_mastr_log = ThDataClctMastrLog()
                     th_data_clct_mastr_log.dtst_cd = dtst_cd
+                    th_data_clct_mastr_log.dtst_dtl_cd = tn_data_bsc_info.dtst_dtl_cd
                     th_data_clct_mastr_log.clct_ymd = data_interval_end.strftime("%Y%m%d")
                     th_data_clct_mastr_log.clct_data_nm = tn_data_bsc_info.dtst_nm.replace(" ", "_")
-                    # th_data_clct_mastr_log.gg_ctgry_cd = tn_data_bsc_info.pbadms_fld_lclsf_cd
-                    # th_data_clct_mastr_log.pbadms_fld_cd = tn_data_bsc_info.pbadms_fld_cd
                     th_data_clct_mastr_log.data_crtr_pnttm = data_crtr_pnttm
-                    th_data_clct_mastr_log.reclect_flfmt_times = 0
+                    th_data_clct_mastr_log.reclect_flfmt_nmtm = 0
                     th_data_clct_mastr_log.step_se_cd = CONST.STEP_CNTN
                     th_data_clct_mastr_log.stts_cd = CONST.STTS_WORK
                     th_data_clct_mastr_log.stts_dt = now(tz="UTC")
@@ -230,16 +229,22 @@ def api_to_csv_localdata():
                     # th_data_clct_mastr_log 테이블에 insert
                     th_data_clct_mastr_log = ThDataClctMastrLog()
                     th_data_clct_mastr_log.dtst_cd = tn_data_bsc_info.dtst_cd
+                    th_data_clct_mastr_log.dtst_dtl_cd = tn_data_bsc_info.dtst_dtl_cd
                     th_data_clct_mastr_log.clct_ymd = data_interval_end.strftime("%Y%m%d")
                     th_data_clct_mastr_log.step_se_cd = CONST.STEP_CLCT
                     
-                    # 행정분야 코드 조회
-                    select_pbadms_fld_cd_stmt = f"""select pbadms_fld_lclsf_cd
+                    # 행정분야 코드 조회 (경산 경우 3뎁스(대분야 중분야 소분야))
+                    select_pbadms_fld_cd_stmt = f"""select pbadms_fld_lclsf_cd,pbadms_fld_mclsf_cd,pbadms_fld_sclsf_cd
                                                     from tn_data_bsc_info a RIGHT JOIN
                                                     (SELECT replace('{file_name}','_{data_crtr_pnttm}','') AS original_file_name) b
                                                     ON a.dtst_nm = b.original_file_name"""
+                    # 데이터셋 상세코드 조회
+                    select_dtst_dtl_cd_stmt = f"""SELECT dtst_dtl_cd
+                                                  FROM tn_data_bsc_info
+                                                  WHERE LOWER(dtst_nm) = LOWER(replace('{file_name}','_{data_crtr_pnttm}',''))"""
                     with session.begin() as conn:
                         pbadms_fld_lclsf_cd = conn.execute(select_pbadms_fld_cd_stmt).first()[0]
+                        dtst_dtl_cd_result = conn.execute(select_dtst_dtl_cd_stmt).first()
                         # gg_ctgry_cd = conn.execute(select_pbadms_fld_cd_stmt).first()[1]
                         if pbadms_fld_lclsf_cd == None or pbadms_fld_lclsf_cd == '':  # 행정분야 코드, 파일명 불일치 시
                             th_data_clct_mastr_log.stts_cd = CONST.STTS_ERROR
@@ -251,10 +256,13 @@ def api_to_csv_localdata():
                             # th_data_clct_mastr_log.pbadms_fld_lclsf_cd = pbadms_fld_lclsf_cd
                             th_data_clct_mastr_log.stts_cd = CONST.STTS_COMP
                             th_data_clct_mastr_log.stts_msg = CONST.MSG_CLCT_COMP
+                        # 데이터셋 상세코드
+                        if dtst_dtl_cd_result:
+                            tn_data_bsc_info.dtst_dtl_cd = dtst_dtl_cd_result[0]  # dtst_dtl_cd 값 설정
+                            th_data_clct_mastr_log.dtst_dtl_cd = tn_data_bsc_info.dtst_dtl_cd
                         th_data_clct_mastr_log.clct_data_nm = "지방행정인허가_" + file_name.split('_')[6]
-                        # th_data_clct_mastr_log.gg_ctgry_cd = gg_ctgry_cd
                         th_data_clct_mastr_log.data_crtr_pnttm = data_crtr_pnttm
-                        th_data_clct_mastr_log.reclect_flfmt_times = 0
+                        th_data_clct_mastr_log.reclect_flfmt_nmtm = 0
                         th_data_clct_mastr_log.stts_dt = now(tz="UTC")
                         th_data_clct_mastr_log.crt_dt = now(tz="UTC")
                         th_data_clct_mastr_log.link_file_sprtr = tn_data_bsc_info.link_file_sprtr
@@ -424,7 +432,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2024,2,1,15,00),
+        execution_date=datetime(2024,9,1,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

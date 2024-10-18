@@ -147,22 +147,30 @@ class CallUrlUtil:
                 return ["item"]
             if dtst_cd == "data6" or pvdr_site_cd == "ps00029":
                 return ["data"]
-            if pvdr_inst_cd in {"pi00004", "pi00022"} or dtst_cd in {"data5", "data22", "data26", "data51", "data4", "data678", "data704", "data706"}:
-                return ["items"]
+            if pvdr_inst_cd in {"pi00004", "pi00022"} or dtst_cd in { "data4", "data5", "data22", "data26", "data704"}:
+                return ["items"]  # 공공데이터활용지원센터/한국환경공단 or 5분소통, 사고정보, 용수시설, 보안등, 교통량_VDS
             if dtst_cd in {"data778", "data780"}:
                 return ["doc"]
-            if dtst_cd == "data777":
+            if dtst_cd == "data777": # 정보나루_정보공개_도서관조회
                 return ["lib"]
-            if dtst_cd == "data785":
-                return ["keyword"]
-            if dtst_cd in {"data781", "data782", "data786"}: # 정보나루 - 지역별 독서량_독서율
-                return ["result"]
             if dtst_cd in {"data677", "data762", "data763"}: # 새올 민원 , 직원정보, 부서정보
                 return ["list"]
             if dtst_cd in {"datadata1011"}:
                 return ["msgBody"]
+            if dtst_cd == "data53":
+                return ["kinderInfo"]
+            if dtst_cd in {"data695", "data851"}: # 인사 - 분류코드/ 임용발령
+                return ["esbResultData"]
+            if (pvdr_site_cd == "ps00028" and dtst_cd not in {"data695", "data694", "data851"}): # 차세대인사_초과근무정산내역/출장정보/당해년도연가일수통계/연가외_휴가신청목록
+                return ["resultList"]
+            # if dtst_cd in {"data675"}:  # 국민 신문고
+            #     return ["Petition","Receipt","Process"]
             
         if keyword == "search_keyword":  # 데이터 건수 keySet
+            if pvdr_inst_cd in {"pi00001"} or dtst_cd in {"data39", "data54"} or pvdr_site_cd == "ps00026":
+                return "list_total_count"
+            if dtst_cd == "data6": #CCTV_영상정보
+                return "datacount"
             if dtst_cd in {"data919","data920","data922"}: # 공공데이터 포털 (목록/파일/오픈API)
                 return "matchCount"
             if pvdr_inst_cd in {"pi00004", "pi00012", "pi00022"} or (pvdr_inst_cd == "pi00008" and dtst_cd == "data49") or (pvdr_inst_cd == "pi00009" and dtst_cd != "data6") \
@@ -172,7 +180,7 @@ class CallUrlUtil:
                 return "numFound"
             # if dtst_cd == "data780":  #정보나루_도서관_지역별_인기대출_도서
             #     return "resultNum"
-            if pvdr_site_cd == "ps00029":
+            if pvdr_site_cd == "ps00029": # 차세대 지방재정
                 return "totalCnt"
         return ""
 
@@ -210,16 +218,11 @@ class CallUrlUtil:
         if (pvdr_inst_cd == "pi00012") or (pvdr_site_cd == "ps00026" and dtst_cd not in {"data652", "data659"}) or dtst_cd in {"data699", "data59", "data66", "data650"}\
             or (pvdr_site_cd == "ps00029" and dtst_cd not in {"data680", "data682", "data683", "data849", "data850", "data873"}):
             params_dict["params"] = year
-        if dtst_cd in {"data786", "data33"}:  # 지역별 독서량_독서율, 측정소별_실시간_월평균_정보_조회
+        if dtst_cd in {"data33"}:  # 측정소별_실시간_월평균_정보_조회
             params_dict["params"] = yyyymm
         if dtst_cd in {"data652", "data659"}:  # 지방재정365(계약현황, 세부사업별_세출현황)
             param_list = date_list
             params_dict["param_list"] = param_list
-        if dtst_cd in {"data778", "data780"}:  # 도서관_장서_대출_조회, 도서관_지역별_인기대출_도서_조회
-            params_dict["params"] = [start_date_dash, end_date_dash]
-            params_dict["param_list"] = param_list
-        if dtst_cd == "data785":  # 이달의_키워드
-            params_dict["params"] = yyyymm_dash
         if dtst_cd == "data695":  # 인사(인사_분류코드정보_송신)
             params_dict["params"] = "ALL"
         if dtst_cd == "data696":  # 인사(초과근무정산내역_정보송신)

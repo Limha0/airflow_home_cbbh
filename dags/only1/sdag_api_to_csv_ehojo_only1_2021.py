@@ -17,7 +17,7 @@ from airflow.exceptions import AirflowSkipException
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 @dag(
-    dag_id="sdag_api_to_csv_ehojo_only1_2020",
+    dag_id="sdag_api_to_csv_ehojo_only1_2021",
     schedule="@daily",
     start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
@@ -198,7 +198,7 @@ def sdag_api_to_csv_ehojo_only1():
                                 repeat_num += 1
                                 break
                             else:  # 파라미터 길이 != 1)
-                                # th_data_clct_call_failr_hist_log 에 입력
+                                # th_data_clct_contact_fail_hstry_log 에 입력
                                 CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, base_url, file_path, session, params_dict['param_list'][repeat_num - 1], page_no)
 
                                 # 총 페이지 수만큼 덜 돌았을 때

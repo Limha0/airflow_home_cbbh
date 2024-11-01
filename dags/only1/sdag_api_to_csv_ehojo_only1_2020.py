@@ -198,7 +198,7 @@ def sdag_api_to_csv_ehojo_only1():
                                 repeat_num += 1
                                 break
                             else:  # 파라미터 길이 != 1)
-                                # th_data_clct_call_failr_hist_log 에 입력
+                                # th_data_clct_contact_fail_hstry_log 에 입력
                                 CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, base_url, file_path, session, params_dict['param_list'][repeat_num - 1], page_no)
 
                                 # 총 페이지 수만큼 덜 돌았을 때

@@ -29,7 +29,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 def api_to_csv_call_fail_retry():
 
     # PostgresHook 객체 생성
-    pg_hook = PostgresHook(postgres_conn_id='yjdp_db_conn')
+    pg_hook = PostgresHook(postgres_conn_id='gsdpdb_db_conn')
 
     #sqlalchemy 를 이용한 connection
     engine = pg_hook.get_sqlalchemy_engine()
@@ -108,7 +108,7 @@ def api_to_csv_call_fail_retry():
             th_data_clct_mastr_log = ThDataClctMastrLog(**info_for_update['th_data_clct_mastr_log'])
             tn_clct_file_info = TnClctFileInfo(**info_for_update['tn_clct_file_info'])
             log_full_file_path = info_for_update['log_full_file_path']
-            th_data_clct_mastr_log.reclect_flfmt_times += 1  # 재수집 수행 횟수 증가
+            th_data_clct_mastr_log.reclect_flfmt_nmtm += 1  # 재수집 수행 횟수 증가
             with session.begin() as conn:
                 CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CNTN, CONST.STTS_WORK, CONST.MSG_CNTN_WORK, "y")
 
@@ -173,7 +173,7 @@ def api_to_csv_call_fail_retry():
                     pvdr_site_cd = tn_data_bsc_info.pvdr_site_cd.lower()
                     pvdr_inst_cd = tn_data_bsc_info.pvdr_inst_cd.lower()
                     # base_url = return_url = tn_data_bsc_info.link_data_clct_url
-                    return_url = th_data_clct_contact_fail_hstry_log.clct_failr_url
+                    return_url = th_data_clct_contact_fail_hstry_log.clct_fail_url
 
                     # 파라미터 설정
                     params = th_data_clct_contact_fail_hstry_log.estn_field_one
@@ -236,9 +236,7 @@ def api_to_csv_call_fail_retry():
                             # 데이터 구분 컬럼, 값 추가
                             add_column = tn_data_bsc_info.data_se_col_two
                             add_column_dict = {}
-                            if dtst_cd in {"data778", "data781", "data782", "data784"}:
-                                add_column_dict = {add_column : params}
-                            if dtst_cd in {"data785", "data786"} or (pvdr_inst_cd == "pi00012" and dtst_cd not in {"data787", "data788"}):  # 이달의_키워드, 지역별 독서량_독서율, TAAS
+                            if pvdr_inst_cd == "pi00012" and dtst_cd not in {"data787", "data788"}:  #TAAS
                                 add_column_dict = {add_column : params}
                             if dtst_cd in {"data656", "data667"}:
                                 add_column_dict = {add_column : "세입"}
@@ -273,9 +271,6 @@ def api_to_csv_call_fail_retry():
                                 if row_count == 0:
                                     header = True
                                     mode = "w"
-
-                                if dtst_cd in {"data783"}:  # 대출_급상승_도서
-                                    result_json = result_json[:5]
 
                                 # csv 파일 생성
                                 CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, result_json, header, mode, page_no)

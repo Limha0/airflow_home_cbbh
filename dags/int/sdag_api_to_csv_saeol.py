@@ -27,7 +27,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 def api_to_csv_saeol():
 
     # PostgresHook 객체 생성
-    pg_hook = PostgresHook(postgres_conn_id='yjdp_db_conn')
+    pg_hook = PostgresHook(postgres_conn_id='gsdpdb_db_conn')
 
     #sqlalchemy 를 이용한 connection
     engine = pg_hook.get_sqlalchemy_engine()
@@ -73,7 +73,7 @@ def api_to_csv_saeol():
             return: file_path: tn_clct_file_info 테이블에 저장할 파일 경로
             """
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-            final_file_path = kwargs['var']['value'].final_file_path
+            final_file_path = kwargs['var']['value'].root_final_file_path
             file_path = CommonUtil.create_directory(collect_data_list, session, data_interval_end, final_file_path, "n")
             return file_path
         
@@ -104,7 +104,7 @@ def api_to_csv_saeol():
             # 파라미터 및 파라미터 길이 설정
             charset = "utf-8"
             if_id = tn_data_bsc_info.pvdr_data_se_vl_one  # 연계 ID
-            src_org_cd = "5590006"  # 요청기관코드7자리   5590006  경기도 양주시 총무국 총무과
+            src_org_cd = "5130008"  # 요청기관코드7자리   
             tgt_org_cd = "5130000"  # 응답기관코드7자리
             msg_key = SaeolUtil.get_msg_key()  # 메세지 식별키
             query_id = tn_data_bsc_info.pvdr_data_se_vl_two  # 쿼리 ID
@@ -115,7 +115,7 @@ def api_to_csv_saeol():
 
             retry_num = 0  # 데이터 없을 시 재시도 횟수
             repeat_num = 1  # 파라미터 길이만큼 반복 호출 횟수
-            page_index = 1  # 현재 페이지
+            page_no = 1  # 현재 페이지
             total_page = 1  # 총 페이지 수
             
             header = True   # 파일 헤더 모드
@@ -123,7 +123,7 @@ def api_to_csv_saeol():
             link_file_crt_yn = tn_data_bsc_info.link_file_crt_yn  # csv 파일 생성 여부
             file_name = tn_clct_file_info.insd_file_nm + "." + tn_clct_file_info.insd_file_extn  # csv 파일명
             source_file_name = tn_clct_file_info.insd_file_nm + "." + tn_data_bsc_info.pvdr_sou_data_pvsn_stle  # 원천 파일명
-            if dtst_cd in {"data762", "data763"}:  # 부서정보, 직원정보 예외
+            if dtst_cd in {"data762", "data763"}:  #직원정보, 부서정보 예외
                 full_file_path = final_file_path
             else:
                 full_file_path = final_file_path + file_path
@@ -137,7 +137,7 @@ def api_to_csv_saeol():
                 while repeat_num <= params_len:
                     
                     # 총 페이지 수만큼 반복 호출
-                    while page_index <= total_page:
+                    while page_no <= total_page:
                         
                         # 파라미터 길이만큼 호출 시 while 종료
                         if repeat_num > params_len:
@@ -150,20 +150,20 @@ def api_to_csv_saeol():
                                 repeat_num += 1
                                 break
                             else:  # 파라미터 길이 != 1)
-                                # th_data_clct_call_failr_hist_log 에 입력
-                                CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, return_url, file_path, session, params_dict['param_list'][repeat_num - 1], page_index)
+                                # th_data_clct_contact_fail_hstry_log 에 입력
+                                CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, return_url, file_path, session, params_dict['param_list'][repeat_num - 1], page_no)
 
                                 # 총 페이지 수만큼 덜 돌았을 때
-                                if page_index < total_page:  # 다음 페이지 호출
+                                if page_no < total_page:  # 다음 페이지 호출
                                     retry_num = 0
-                                    page_index += 1
+                                    page_no += 1
                                     continue
                                 # 총 페이지 수만큼 다 돌고
-                                elif page_index == total_page:
+                                elif page_no == total_page:
                                     # 파라미터 길이만큼 덜 돌았을 때
                                     if repeat_num < params_len:
                                         retry_num = 0
-                                        page_index = 1
+                                        page_no = 1
                                         repeat_num += 1
                                         continue
                                     # 파라미터 길이만큼 다 돌았을 때
@@ -172,17 +172,17 @@ def api_to_csv_saeol():
                                         break
 
                         # soap 요청 메세지 설정
-                        message, message_body = SaeolUtil.make_message(dtst_cd, query_id, params_dict, repeat_num, ((page_index - 1) * 200) + 1)
+                        message, message_body = SaeolUtil.make_message(dtst_cd, query_id, params_dict, repeat_num, ((page_no - 1) * 200) + 1)
                         req_soap = SaeolUtil.make_req_soap(if_id, src_org_cd, tgt_org_cd, msg_key, message)
                         addr = f"{return_url}{if_id}"
-                        # logging.info(f"call_url req_soap::: {req_soap}")
+                        logging.info(f"call_url req_soap::: {req_soap}")
                         
                         # url 호출
                         res_soap = SaeolUtil.send_http_request(addr, req_soap, charset, if_id)
                         # logging.info(f"call_url res_soap::: {res_soap}")
 
                         # url 호출 시 메세지 설정
-                        header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_index, message_body, total_page, full_file_name, header, mode)
+                        header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_no, message_body, total_page, full_file_name, header, mode)
 
                         root = ET.fromstring(res_soap)
                         body = root.find('.//env:Body', namespaces={'env': 'http://schemas.xmlsoap.org/soap/envelope/'})
@@ -202,11 +202,11 @@ def api_to_csv_saeol():
                             result = CallUrlUtil.read_json(json_data, pvdr_site_cd, pvdr_inst_cd, dtst_cd, tn_data_bsc_info.data_se_col_one)
                             result_json = result['result_json_array']
                             result_size = len(result_json)
-
+                            
                             # 데이터 존재 시
                             if result_size != 0:
                                 retry_num = 0  # 재시도 횟수 초기화
-                                if page_index == 1: # 첫 페이지일 때
+                                if page_no == 1: # 첫 페이지일 때
                                     # 페이징 계산
                                     total_count = int(result['total_count'])
                                     total_page = CallUrlUtil.get_total_page(total_count, result_size)
@@ -220,9 +220,11 @@ def api_to_csv_saeol():
                                 if dtst_cd == 'data677':
                                     for item in result_json:
                                         item['dpp_nm'] = CallUrlUtil.anonymize(item.get('dpp_nm', ''))
-
+                                
+                                print("@@@@full_file_name : ",full_file_name)
+                                print("@@@@@file_name : ",file_name)
                                 # csv 파일 생성
-                                CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, result_json, header, mode, page_index)
+                                CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, result_json, header, mode, page_no)
 
                             row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)  # 행 개수 확인
                             if row_count != 0:
@@ -233,15 +235,15 @@ def api_to_csv_saeol():
                                 repeat_num += 1
                                 break
                             else:
-                                if page_index < total_page:
-                                    page_index += 1
-                                elif page_index == total_page:
+                                if page_no < total_page:
+                                    page_no += 1
+                                elif page_no == total_page:
                                     if params_len == 1:
                                         repeat_num += 1
                                         break
                                     elif params_len != 1:
                                         if repeat_num < params_len:
-                                            page_index = 1
+                                            page_no = 1
                                             repeat_num += 1
                                         else: repeat_num += 1
                                         break

@@ -48,9 +48,7 @@ def sdag_rdb_bis():
                                 AND LOWER(link_clct_mthd_dtl_cd) = 'rdb'
                                 AND LOWER(link_clct_cycle_cd) = 'month'
                                 AND link_ntwk_otsd_insd_se = '내부'
-                                --AND LOWER(pvdr_inst_cd) = 'pi00001'
-                                AND LOWER(pvdr_site_cd) = 'ps00003'
-                                and dtst_cd not in ('data1020') --test
+                                AND LOWER(pvdr_site_cd) = 'ps00003' --bis
                             ORDER BY sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
@@ -188,23 +186,23 @@ def sdag_rdb_bis():
                 df.to_csv(file_name, sep = link_file_sprtr, header = True, index_label= "clct_sn", encoding='utf-8-sig')
                 full_file_name = full_file_path + file_name
 
-                if dtst_cd == "data803":
-                    # csv 한글 헤더를 DW 영문 컬럼명으로 변경
-                    get_data_column_stmt = f"""
-                                SELECT column_name
-                                FROM information_schema.columns
-                                WHERE table_name = '{tn_data_bsc_info.dw_tbl_phys_nm}'
-                                ORDER BY ordinal_position
-                            """
-                    with session.begin() as conn:
-                        dw_column_dict = []  # DW 컬럼명
-                        for dict_row in conn.execute(get_data_column_stmt).all():
-                            dw_column_dict.append(dict_row[0])
+                # if dtst_cd == "data803":
+                #     # csv 한글 헤더를 DW 영문 컬럼명으로 변경
+                #     get_data_column_stmt = f"""
+                #                 SELECT column_name
+                #                 FROM information_schema.columns
+                #                 WHERE table_name = '{tn_data_bsc_info.dw_tbl_phys_nm}'
+                #                 ORDER BY ordinal_position
+                #             """
+                #     with session.begin() as conn:
+                #         dw_column_dict = []  # DW 컬럼명
+                #         for dict_row in conn.execute(get_data_column_stmt).all():
+                #             dw_column_dict.append(dict_row[0])
 
-                    if dw_column_dict != []:
-                        df = pd.read_csv(full_file_name, sep=link_file_sprtr)
-                        df.columns = dw_column_dict
-                        df.to_csv(full_file_name, index= False, sep=link_file_sprtr, encoding='utf-8-sig')
+                #     if dw_column_dict != []:
+                #         df = pd.read_csv(full_file_name, sep=link_file_sprtr)
+                #         df.columns = dw_column_dict
+                #         df.to_csv(full_file_name, index= False, sep=link_file_sprtr, encoding='utf-8-sig')
 
                 # 파일 사이즈 확인
                 if os.path.exists(full_file_name):

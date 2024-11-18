@@ -297,11 +297,7 @@ class CommonUtil:
         params: root_file_path (상위 폴더 경로), data_interval_end, tn_data_bsc_info
         return: file_path, full_file_path
         """
-        # if tn_data_bsc_info.dtst_cd == 'data891':  # 노선별OD데이터 예외
-        #     file_path = tn_data_bsc_info.pvdr_site_nm + "/" + data_interval_end.strftime("%Y") + "/" + data_interval_end.strftime("%m") + "/"
-        # else:
-        file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_")  # file_name을 문자열로 정의
-        file_path = data_interval_end.strftime("%Y") + "년/" + file_name + "/"
+        file_path = data_interval_end.strftime("%Y") + "년/" + tn_data_bsc_info.pvdr_site_nm + "/"
         file_path += { 'year' : data_interval_end.strftime("%Y"),
                         'quarter' : data_interval_end.strftime("%Y%m"),
                         'month' : data_interval_end.strftime("%Y%m"),

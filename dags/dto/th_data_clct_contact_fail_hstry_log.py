@@ -13,7 +13,7 @@ class ThDataClctCallFailrHistLog(Base):
     sn = Column(Integer, primary_key=True)
     clct_log_sn = Column(Integer)
     dtst_cd = Column(String)
-    clct_failr_url = Column(String)
+    clct_fail_url = Column(String)
     clct_pgng_no = Column(Integer)
     stts_cd = Column(String)
     stts_msg = Column(String)

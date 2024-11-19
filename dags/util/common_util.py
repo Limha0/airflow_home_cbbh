@@ -331,21 +331,21 @@ class CommonUtil:
                                         AND LOWER(link_yn) = 'y'
                                         AND LOWER(dtst_cd) = '{dtst_cd}'
                                     '''
-                # if dtst_cd == "data675":  # 신문고
-                #     select_bsc_info_stmt = f'''
-                #                             SELECT sn, a.dtst_cd, b.dtst_nm, dtst_dc, a.pvdr_site_cd, pvdr_inst_cd, pvdr_dept_nm, pvdr_pvsn_mthd_cd, pvdr_data_se_vl_one, pvdr_data_se_vl_two
-                #                                 , pvdr_updt_cycle_cd, pvdr_sou_data_pvsn_stle, link_ntwk_otsd_insd_se, link_pvdr_url, link_data_clct_url, link_db_id, link_tbl_phys_nm, link_dtst_se_cd, link_geom_utlz_yn, link_file_crt_yn
-                #                                 , link_file_merg_yn, link_file_extn, a.link_file_sprtr, link_yn, link_se_cd, clct_yn, link_clct_mthd, link_clct_mthd_dtl_cd, link_clct_cycle_cd, link_clct_job_id
-                #                                 , b.pbadms_fld_cd, b.gg_ctgry_cd, nonidntf_prcs_yn, encpt_yn, a.dw_load_yn, dw_load_mthd_cd, b.dw_tbl_phys_nm, addr_refine_yn, dtwrh_utlz_yn, data_rls_se_cd
-                #                                 , portal_dwnld_pvsn_yn, a.use_yn, crt_dt, rmrk, rmrk_two, rmrk_three, data_se_col_one, data_se_col_two, rfrnc_phys_tbl_nm, rfrnc_col_nm, crtr_del_col_nm
-                #                                 , (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND a.pvdr_site_cd = dtl_cd) AS pvdr_site_nm
-                #                             FROM tn_data_bsc_info a, tc_pbadms_fld_mapng b
-                #                             WHERE 1=1
-                #                             AND a.dtst_cd = b.dtst_cd
-                #                             AND a.dtst_cd = 'data675'
-                #                             AND b.dtst_nm = '{th_data_clct_mastr_log.clct_data_nm}'
-                #                             ORDER BY a.dtst_cd
-                #                             '''
+                if dtst_cd == "data675":  # 신문고
+                    select_bsc_info_stmt = f'''
+                                            SELECT sn, a.dtst_cd, b.dtst_nm, a.dtst_dtl_cd, a.pvdr_site_cd, pvdr_inst_cd, pvdr_dept_nm, pvdr_pvsn_mthd_cd, pvdr_data_se_vl_one, pvdr_data_se_vl_two
+                                                , pvdr_updt_cycle_cd, pvdr_sou_data_pvsn_stle, link_ntwk_otsd_insd_se, link_pvdr_url, link_data_clct_url, link_db_id, link_tbl_phys_nm, link_dtst_se_cd, link_file_crt_yn
+                                                , link_file_merg_yn, link_file_extn, a.link_file_sprtr, link_yn, link_se_cd, clct_yn, link_clct_mthd, link_clct_mthd_dtl_cd, link_clct_cycle_cd, link_clct_job_id
+                                                , b.pbadms_fld_cd, encpt_yn, a.dw_load_yn, dw_load_mthd_cd, b.dw_tbl_phys_nm, addr_refine_yn, dtwrh_utlz_yn, data_rls_se_cd
+                                                , portal_dwnld_pvsn_yn, a.use_yn, crt_dt, rmrk, rmrk_two, rmrk_three, data_se_col_one, data_se_col_two, rfrnc_phys_tbl_nm, rfrnc_col_nm, crtr_del_col_nm
+                                                , (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND a.pvdr_site_cd = dtl_cd) AS pvdr_site_nm
+                                            FROM tn_data_bsc_info a, tc_pbadms_fld_mapng b
+                                            WHERE 1=1
+                                            AND a.dtst_cd = b.dtst_cd
+                                            AND a.dtst_cd = 'data675'
+                                            AND b.dtst_nm = '{th_data_clct_mastr_log.clct_data_nm}'
+                                            ORDER BY a.dtst_cd
+                                            '''
                 dict_row_info = conn.execute(select_bsc_info_stmt).first()
                 tn_data_bsc_info = TnDataBscInfo(**dict_row_info)
 

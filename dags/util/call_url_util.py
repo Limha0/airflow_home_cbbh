@@ -73,17 +73,12 @@ class CallUrlUtil:
                 if list_keyword in json_data:
                     value = json_data.get(list_keyword)
                     if isinstance(value, dict):  # 객체일 경우
-                        # if dtst_cd == "data783" and value['docs'] != []: # 대출_급상승_도서 예외
-                        #     for doc in value['docs']:
-                        #         result_json_array.append({k: v for k, v in doc['doc'].items() if k != 'doc'})
-                        #         result_json_array[-1]['searchdt'] = value['date']
-                        # if dtst_cd != "data783":
-                            temp_dict = {}
-                            for key, values in value.items():
-                                if ignore_column == key:
-                                    continue
-                                temp_dict = CallUrlUtil.parsing_value(temp_dict, key, values,ignore_column)
-                            result_json_array.append(temp_dict)
+                        temp_dict = {}
+                        for key, values in value.items():
+                            if ignore_column == key:
+                                continue
+                            temp_dict = CallUrlUtil.parsing_value(temp_dict, key, values,ignore_column)
+                        result_json_array.append(temp_dict)
                     elif isinstance(value, list):  # 배열일 경우
                         for item in value:
                             temp_dict = {}
@@ -447,7 +442,7 @@ class CallUrlUtil:
                         column_order = pd.read_csv(full_file_name, sep= link_file_sprtr, low_memory = False).columns.drop('clct_sn')
                         df = df.reindex(columns=column_order, fill_value=None)
                         # df = df[column_order]
-                        print("@@@@@@df : "+df)
+                        print("@@@@@@df : ",df)
                     
 
                     df.to_csv(full_file_name, sep=link_file_sprtr, header=header, index_label="clct_sn", mode=mode, encoding='utf-8-sig')

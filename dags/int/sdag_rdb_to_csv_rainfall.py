@@ -14,12 +14,12 @@ from airflow.exceptions import AirflowSkipException
 
 @dag(
     dag_id="sdag_rdb_to_csv_rainfall",
-    schedule="@monthly",
+    schedule="0 2,4 * * *",
     start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
     render_template_as_native_obj=True,
-    tags=["rdb_bis", "month", "int"],
+    tags=["rdb_rainfall", "day", "int","db_to_csv"],
 )
 def rdb_to_csv_rainfall():
 
@@ -46,7 +46,7 @@ def rdb_to_csv_rainfall():
                                 AND LOWER(clct_yn) = 'y'
                                 AND LOWER(link_yn) = 'y'
                                 AND LOWER(link_clct_mthd_dtl_cd) = 'rdb'
-                                --AND LOWER(link_clct_cycle_cd) = 'month'
+                                AND LOWER(link_clct_cycle_cd) = 'day'
                                 AND link_ntwk_otsd_insd_se = '내부'
                                 --AND LOWER(pvdr_inst_cd) = 'pi00001'
                                 AND LOWER(pvdr_site_cd) = 'ps00060'

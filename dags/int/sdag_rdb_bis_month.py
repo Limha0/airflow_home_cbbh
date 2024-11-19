@@ -186,23 +186,30 @@ def sdag_rdb_bis():
                 df.to_csv(file_name, sep = link_file_sprtr, header = True, index_label= "clct_sn", encoding='utf-8-sig')
                 full_file_name = full_file_path + file_name
 
-                # if dtst_cd == "data803":
-                #     # csv 한글 헤더를 DW 영문 컬럼명으로 변경
-                #     get_data_column_stmt = f"""
-                #                 SELECT column_name
-                #                 FROM information_schema.columns
-                #                 WHERE table_name = '{tn_data_bsc_info.dw_tbl_phys_nm}'
-                #                 ORDER BY ordinal_position
-                #             """
-                #     with session.begin() as conn:
-                #         dw_column_dict = []  # DW 컬럼명
-                #         for dict_row in conn.execute(get_data_column_stmt).all():
-                #             dw_column_dict.append(dict_row[0])
+                if tn_data_bsc_info.dtst_cd == "data1049": # 버스노선현황
+                    # csv 한글 헤더를 DW 영문 컬럼명으로 변경
+                    get_data_column_stmt = f"""
+                                SELECT column_name
+                                FROM information_schema.columns
+                                WHERE table_name = '{tn_data_bsc_info.dw_tbl_phys_nm}'
+                                ORDER BY ordinal_position
+                            """
+                    with session.begin() as conn:
+                        dw_column_dict = []  # DW 컬럼명
+                        for dict_row in conn.execute(get_data_column_stmt).all():
+                            dw_column_dict.append(dict_row[0])
+                    logging.info(f"DW 컬럼: {dw_column_dict}")
 
-                #     if dw_column_dict != []:
-                #         df = pd.read_csv(full_file_name, sep=link_file_sprtr)
-                #         df.columns = dw_column_dict
-                #         df.to_csv(full_file_name, index= False, sep=link_file_sprtr, encoding='utf-8-sig')
+                    if dw_column_dict != []:
+                        df = pd.read_csv(full_file_name, sep=link_file_sprtr)
+                        # 한글 컬럼명을 영문으로 매핑
+                        column_mapping = {
+                            "노선상태": "rte_stts",
+                            "노선유형": "rte_type",
+                            # 필요하면 다른 컬럼 매핑도 여기에 추가
+                        }
+                        df.rename(columns=column_mapping, inplace=True)
+                        df.to_csv(full_file_name, index= False, sep=link_file_sprtr, encoding='utf-8-sig')
 
                 # 파일 사이즈 확인
                 if os.path.exists(full_file_name):

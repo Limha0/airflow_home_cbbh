@@ -47,8 +47,8 @@ class CommonUtil:
 
                     if dtst_cd in {"data762", "data763"}:  # 부서정보, 직원정보 예외
                         file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_")
-
-                    file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_") + "_" + data_crtr_pnttm
+                    else:
+                        file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_") + "_" + data_crtr_pnttm
                     
                     # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB 로그 존재 확인
                     if dtst_cd in {"data852", "data4", "data799", "data31", 'data855', "data793", "data795", "data792", "data794"}:

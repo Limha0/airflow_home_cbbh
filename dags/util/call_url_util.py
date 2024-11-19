@@ -5,6 +5,8 @@ from math import trunc
 import json
 import re
 
+import requests
+
 from util.date_custom_util import DateUtil
 from util.file_util import FileUtil
 from dto.tc_com_dtl_cd import TcCmmnDtlCd as CONST
@@ -87,9 +89,9 @@ class CallUrlUtil:
                             temp_dict = {}
                             for key, values in item.items():
                                 temp_dict = CallUrlUtil.parsing_value(temp_dict, key, values,ignore_column)
-                                # if len(list_keywords) > 1:  # 도서관별 인기대출도서 통합 예외 (list_keywords 컬럼 구분 값 추가), 신문고 민원
-                                    # add_dict = {add_column : list_keyword}
-                                    # temp_dict.update(add_dict)
+                                if len(list_keywords) > 1:  # 도서관별 인기대출도서 통합 예외 (list_keywords 컬럼 구분 값 추가), 신문고 민원
+                                    add_dict = {add_column : list_keyword}
+                                    temp_dict.update(add_dict)
                             result_json_array.append(temp_dict)
             # 재귀적으로 하위 객체에서 데이터를 추출하여 배열에 담음
             for key, value in json_data.items():
@@ -163,8 +165,8 @@ class CallUrlUtil:
                 return ["esbResultData"]
             if (pvdr_site_cd == "ps00028" and dtst_cd not in {"data695", "data694", "data851"}): # 차세대인사_초과근무정산내역/출장정보/당해년도연가일수통계/연가외_휴가신청목록
                 return ["resultList"]
-            # if dtst_cd in {"data675"}:  # 국민 신문고
-            #     return ["Petition","Receipt","Process"]
+            if dtst_cd in {"data675"}:  # 국민 신문고
+                return ["Petition","Receipt","Process"]
             
         if keyword == "search_keyword":  # 데이터 건수 keySet
             if pvdr_inst_cd in {"pi00001"} or dtst_cd in {"data39", "data54"} or pvdr_site_cd == "ps00026":
@@ -327,11 +329,11 @@ class CallUrlUtil:
                 logging.info(f"set_params Exception::: {e}")
                 raise e
 
-        if dtst_cd == "data780":  # 도서관_지역별_인기대출_도서_조회
-            list1 = [11,31,31260]
-            list2 = [0,1,2]
-            list3 = [0,6,8,14,20,30,40,50,60,-1]
-            param_list = [f"{x},{y},{z}" for x in list1 for y in list2 for z in list3]
+        # if dtst_cd == "data780":  # 도서관_지역별_인기대출_도서_조회
+        #     list1 = [11,31,31260]
+        #     list2 = [0,1,2]
+        #     list3 = [0,6,8,14,20,30,40,50,60,-1]
+        #     param_list = [f"{x},{y},{z}" for x in list1 for y in list2 for z in list3]
         return param_list
 
 
@@ -351,6 +353,8 @@ class CallUrlUtil:
             return f"{param_list[repeat_num - 1]}&pageNo={page_no}"
         if dtst_cd in {"data852"}:  # 기상청_단기예보_시간
             return f"{page_no}&base_date={params[0]}&base_time={params[1]}"
+        if dtst_cd == "data19":  # 건축물대장_표제부
+            return f"{page_no}&bjdongCd={param_list[repeat_num - 1]}"
         if dtst_cd in {"data30", "data31"}:  # 대기오염정보_측정소정보, 대기오염정보_측정소별_실시간_측정정보_조회
             return f"{page_no}&stationName={param_list[repeat_num - 1]}"
         if dtst_cd == "data32":  # 대기오염_국가측정망_실시간_일평균_정보_조회 
@@ -367,7 +371,7 @@ class CallUrlUtil:
             return f"{page_no}&fyr={param_list[repeat_num - 1][:4]}&exe_ymd={param_list[repeat_num - 1]}"
         if pvdr_inst_cd == "pi00019" or (pvdr_site_cd == "ps00010" and dtst_cd not in {"data59", "data66"}) or pvdr_site_cd == "ps00008" or dtst_cd in {"data4", "data8", "data704", "data706", "data53", "data854", "data855"}:  # 국가통계포털(노령화지수_시도, 추계인구_시_군_구 제외)
             return ""
-        if dtst_cd in {"data59", "data66", "data785", "data783", "data650"}:  # 국가통계포털(노령화지수_시도, 추계인구_시_군_구), 이달의_키워드, 대출_급상승_도서, 한국천문연구원_특일_정보
+        if dtst_cd in {"data59", "data66", "data650"}:  # 국가통계포털(노령화지수_시도, 추계인구_시_군_구), 한국천문연구원_특일_정보
             return f"{params}"
         if dtst_cd == "data33":  # 대기오염_국가측정망_월평균_측정정보_조회 
             return f"{page_no}&msrstnName={param_list[repeat_num - 1]}&inqBginMm={params}&inqEndMm={params}"
@@ -435,16 +439,18 @@ class CallUrlUtil:
                 row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)
                 
                 df.index += row_count + 1
-                # if '신문고민원_접수' in file_name:
-                #     selected_columns = df.iloc[:, :34]
-                #     selected_columns.to_csv(full_file_name, sep= link_file_sprtr, header= header, index_label= "clct_sn", mode= mode, encoding='utf-8-sig')
-                # else:# csv 헤더 읽어들여 컬럼 순서 지정
-                if row_count != 0:
-                # column_order = pd.read_csv(full_file_name, sep= link_file_sprtr, low_memory = False).columns.drop('clct_sn')
-                    column_order = pd.read_csv(full_file_name, sep= link_file_sprtr, low_memory = False).columns.drop('clct_sn')
-                    df = df[column_order]
-                df.to_csv(full_file_name, sep= link_file_sprtr, header= header, index_label= "clct_sn", mode= mode, encoding='utf-8-sig')
+                if '신문고민원_접수' in file_name:
+                    selected_columns = df.iloc[:, :34]
+                    selected_columns.to_csv(full_file_name, sep= link_file_sprtr, header= header, index_label= "clct_sn", mode= mode, encoding='utf-8-sig')
+                else:# csv 헤더 읽어들여 컬럼 순서 지정
+                    if row_count != 0:
+                        column_order = pd.read_csv(full_file_name, sep= link_file_sprtr, low_memory = False).columns.drop('clct_sn')
+                        df = df.reindex(columns=column_order, fill_value=None)
+                        # df = df[column_order]
+                        print("@@@@@@df : "+df)
                     
+
+                    df.to_csv(full_file_name, sep=link_file_sprtr, header=header, index_label="clct_sn", mode=mode, encoding='utf-8-sig')
         except Exception as e:
             logging.info(f"create_csv_file Exception::: {e}")
             raise e
@@ -467,7 +473,7 @@ class CallUrlUtil:
         다운로드 실패 시 th_data_clct_contact_fail_hstry_log 테이블에 입력
         params: th_data_clct_mastr_log, return_url, file_path, session, params, pgng_cnt
         """
-        from dags.dto.th_data_clct_contact_fail_hstry_log import ThDataClctCallFailrHistLog
+        from dto.th_data_clct_contact_fail_hstry_log import ThDataClctCallFailrHistLog
         from dto.tc_com_dtl_cd import TcCmmnDtlCd as CONST
         from pendulum import now
 
@@ -476,7 +482,7 @@ class CallUrlUtil:
                 th_data_clct_contact_fail_hstry_log = ThDataClctCallFailrHistLog()
                 th_data_clct_contact_fail_hstry_log.clct_log_sn = th_data_clct_mastr_log.clct_log_sn
                 th_data_clct_contact_fail_hstry_log.dtst_cd = th_data_clct_mastr_log.dtst_cd
-                th_data_clct_contact_fail_hstry_log.clct_failr_url = return_url
+                th_data_clct_contact_fail_hstry_log.clct_fail_url = return_url
                 th_data_clct_contact_fail_hstry_log.clct_pgng_no = pgng_cnt
                 th_data_clct_contact_fail_hstry_log.stts_cd = CONST.STTS_ERROR
                 th_data_clct_contact_fail_hstry_log.stts_msg = 'OpenAPI_ServiceResponse'  # test
@@ -487,6 +493,22 @@ class CallUrlUtil:
         except Exception as e:
             logging.info(f"insert_fail_history_log Exception::: {e}")
             raise e
+        
+    
+    def update_fail_history_log(th_data_clct_contact_fail_hstry_log, session, status_code, message):
+        """
+        th_data_clct_contact_fail_hstry_log 테이블 재시도 로그 업데이트
+        params: th_data_clct_contact_fail_hstry_log, session
+        """
+        try:
+            with session.begin() as conn:
+                th_data_clct_contact_fail_hstry_log.stts_cd = status_code
+                th_data_clct_contact_fail_hstry_log.stts_msg = message
+                conn.merge(th_data_clct_contact_fail_hstry_log)
+        except Exception as e:
+            logging.info(f"update_fail_history_log Exception::: {e}")
+            raise e
+        logging.info(f"update_fail_history_log::: {th_data_clct_contact_fail_hstry_log.as_dict()}")
         
         
     def get_fail_data_count(clct_log_sn, session):
@@ -517,3 +539,29 @@ class CallUrlUtil:
             return value[0] + re.sub(r'\S', '*', value[1:])
         else:
             return value
+        
+    def get_total_count(url):
+        """
+        총 데이터 건수 조회 url 호출
+        params: url, th_data_clct_mastr_log, session
+        return: total_count
+        """
+        try:
+            retry_num = 0
+            while retry_num <= 3:
+                response = requests.get(url, verify= False)
+                response_code = response.status_code
+                if response_code == 200:
+                    total_count = int(response.text)
+                    break
+                else:
+                    logging.info(f"get_total_count response_code::: {response_code}")
+                    retry_num += 1
+                    logging.info(f"get_total_count 재시도 횟수::: {retry_num}")
+            if retry_num > 3:
+                raise e
+        except Exception as e:
+            logging.info(f"get_total_count Exception::: {e}")
+            raise e
+        return total_count
+    

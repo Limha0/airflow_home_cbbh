@@ -34,7 +34,7 @@ def xml_to_csv_esb_fail_retry():
     engine = pg_hook.get_sqlalchemy_engine()
 
     # sqlalchey session 생성
-    session = sessionmaker(engine)
+    session = sessionmaker(engine, expire_on_commit=False)
 
     @task
     def insert_collect_data_info(**kwargs):
@@ -82,7 +82,8 @@ def xml_to_csv_esb_fail_retry():
             """
             
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-            final_file_path = kwargs['var']['value'].final_file_path
+            # final_file_path = kwargs['var']['value'].final_file_path
+            final_file_path = kwargs['var']['value'].root_final_file_path
             file_path = CommonUtil.create_directory(collect_data_list, session, data_interval_end, final_file_path, "n")
             return file_path
         
@@ -104,7 +105,8 @@ def xml_to_csv_esb_fail_retry():
             tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
             log_full_file_path = collect_data_list['log_full_file_path']
             esb_file_path = kwargs['var']['value'].esb_file_path  # 원천 파일 경로
-            final_file_path = kwargs['var']['value'].final_file_path
+            # final_file_path = kwargs['var']['value'].final_file_path
+            final_file_path = kwargs['var']['value'].root_final_file_path
             # error_file_path = "/home/gsdpmng/data/error_file"  # 에러 파일 경로
             # error_file_path = kwargs['var']['value'].error_file_path  # 에러 파일 경로
 
@@ -304,22 +306,22 @@ def xml_to_csv_esb_fail_retry():
                 # 파일 사이즈 확인
                 if os.path.exists(full_file_name):
                     file_size = os.path.getsize(full_file_name)
-                logging.info(f"call_url file_size::: {file_size}")
+                logging.info(f"call_url file_name::: {file_name}, file_size::: {file_size}")
 
                 # logging.info(f"수집 끝")
                 if row_count == 0:
-                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_COMP, CONST.MSG_CLCT_COMP_NO_DATA, "y")
+                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_COMP, CONST.MSG_CLCT_COMP_NO_DATA, "n")
                     raise AirflowSkipException()
                 else:
                     # tn_clct_file_info 수집파일정보
                     tn_clct_file_info = CommonUtil.set_file_info(TnClctFileInfo(), th_data_clct_mastr_log, tn_clct_file_info.insd_file_nm, file_path, tn_data_bsc_info.link_file_extn, file_size, None)
                     
-                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_COMP, CONST.MSG_CLCT_COMP, "y")
+                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_COMP, CONST.MSG_CLCT_COMP, "n")
                     if link_file_crt_yn == "y":
                         CommonUtil.update_file_info_table(session, th_data_clct_mastr_log, tn_clct_file_info, tn_clct_file_info.insd_file_nm, file_path, tn_clct_file_info.insd_file_extn, file_size)
-                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_INSD_SEND, CONST.STTS_COMP, CONST.MSG_FILE_INSD_SEND_COMP_INT, "y")
+                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_INSD_SEND, CONST.STTS_COMP, CONST.MSG_FILE_INSD_SEND_COMP_INT, "n")
             except Exception as e:
-                CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_ERROR, CONST.MSG_CLCT_ERROR_CALL, "y")
+                CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_ERROR, CONST.MSG_CLCT_ERROR_CALL, "n")
                 logging.error(f"call_url Exception::: {e}")
                 raise e
     
@@ -338,7 +340,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2024,11,18,15,00),
+        execution_date=datetime(2024,11,21,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

@@ -1,6 +1,6 @@
 import logging
 
-from pendulum import datetime, from_format
+from pendulum import datetime, from_format, now
 from airflow.decorators import dag, task, task_group
 from util.common_util import CommonUtil
 from dto.tn_data_bsc_info import TnDataBscInfo
@@ -48,13 +48,14 @@ def rdb_to_csv_rainfall():
                                 AND LOWER(link_clct_mthd_dtl_cd) = 'rdb'
                                 AND LOWER(link_clct_cycle_cd) = 'day'
                                 AND link_ntwk_otsd_insd_se = '내부'
-                                --AND LOWER(pvdr_inst_cd) = 'pi00001'
                                 AND LOWER(pvdr_site_cd) = 'ps00060'
-                                --and dtst_cd not in ('data1020') --test
                             ORDER BY sn;
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
+        logging.info(f"data_interval_start: {data_interval_start}, data_interval_end: {data_interval_end}")
+        if now().strftime("%H") == '05':
+            data_interval_start = now().add(days=-1)
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
         if collect_data_list == []:
             logging.info(f"select_collect_data_fail_info ::: 수집 대상없음 프로그램 종료")
@@ -127,8 +128,8 @@ def rdb_to_csv_rainfall():
             return: file_path: tn_clct_file_info 테이블에 저장할 파일 경로
             """
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
+            #final_file_path = kwargs['var']['value'].root_final_file_path  # local test
             file_path = CommonUtil.create_directory(collect_data_list, session, data_interval_end, final_file_path, "n")
             return file_path
 
@@ -147,8 +148,8 @@ def rdb_to_csv_rainfall():
             tn_data_bsc_info = TnDataBscInfo(**collect_data_list['tn_data_bsc_info'])
             tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
             log_full_file_path = collect_data_list['log_full_file_path']
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
+            #final_file_path = kwargs['var']['value'].root_final_file_path  # local test
             full_file_path = final_file_path + file_path
 
             # 연계 DB SQL문
@@ -162,7 +163,7 @@ def rdb_to_csv_rainfall():
                                     ,'{data_crtr_pnttm}' data_crtr_pnttm
                                     ,'{DateUtil.get_ymdhm()}' clct_pnttm
                                     ,'{th_data_clct_mastr_log.clct_log_sn}' clct_log_sn
-                                FROM gsbms.{link_tbl_phys_nm} a '''
+                                FROM {link_tbl_phys_nm} a '''
             
             if dw_load_mthd_cd == '3month_change':
                 select_db_stmt += " WHERE to_date(indt, 'YYYYMMDDHH24MISS') BETWEEN add_months(trunc(sysdate, 'mm'), -3) AND sysdate"

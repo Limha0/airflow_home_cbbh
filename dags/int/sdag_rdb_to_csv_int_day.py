@@ -49,13 +49,12 @@ def rdb_to_csv():
                                     AND LOWER(link_yn) = 'y'
                                     AND LOWER(link_clct_mthd_dtl_cd) = 'rdb'
                                     AND LOWER(link_clct_cycle_cd) = 'day'
+                                    AND lower(pvdr_site_cd) ='ps00040' 
                                     AND link_ntwk_otsd_insd_se = '내부' --주민요약DB
                                 ORDER BY sn
                                 '''
-        # data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
-        data_interval_start = kwargs['data_interval_start'].in_timezone(pendulum.timezone("Asia/Seoul"))
+        data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-        logging.info(f"data_interval_start: {data_interval_start}, data_interval_end: {data_interval_end}")
         if now().strftime("%H") == '05':
             data_interval_start = now().add(days=-1)
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)

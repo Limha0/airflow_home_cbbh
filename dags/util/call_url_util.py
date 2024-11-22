@@ -422,8 +422,17 @@ class CallUrlUtil:
 
         # csv 파일 생성
         try:
+            # os.chdir(full_file_path)
+             # 디렉토리 존재 확인 및 이동
+            if not os.path.exists(full_file_path):
+                os.makedirs(full_file_path)
             os.chdir(full_file_path)
+
             df = pd.json_normalize(result_json, sep= "_")
+            # 데이터프레임 비어 있는지 확인
+            if df.empty:
+                logging.error("데이터프레임이 비어 있음. CSV 파일 생성 중단.")
+                raise ValueError("데이터프레임이 비어 있음. CSV 파일 생성 불가.")
             df = df.replace("\n"," ", regex=True).replace("\r\n"," ", regex=True).replace("\r"," ", regex=True).apply(lambda x: (x.str.strip() if x.dtypes == 'object' and x.str._inferred_dtype == 'string' else x), axis = 0)  # 개행문자 제거, string 양 끝 공백 제거
             full_file_name = full_file_path + file_name
             # 5분_소통정보, 대기오염정보_측정소별_실시간_측정정보_조회(->대기오염_국가측정망_시간대별_측정정보), 실시간_측정정보_조회(->대기오염_자체측정망_시간대별_측정정보) - clct_sn 생성하지않음
@@ -431,7 +440,13 @@ class CallUrlUtil:
                 df.to_csv(full_file_name, sep= link_file_sprtr, header= header, index=False, mode= mode, encoding='utf-8-sig')
             else:
                 # clct_sn 로그 순번 설정
-                row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)
+                # row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)
+                row_count = 0
+                if os.path.exists(full_file_name):
+                    try:
+                        row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)
+                    except Exception as e:
+                        logging.warning(f"기존 CSV 파일의 행 개수 확인 실패. 초기값 사용: {e}")
                 
                 df.index += row_count + 1
                 if '신문고민원_접수' in file_name:
@@ -446,9 +461,19 @@ class CallUrlUtil:
                     
 
                     df.to_csv(full_file_name, sep=link_file_sprtr, header=header, index_label="clct_sn", mode=mode, encoding='utf-8-sig')
+        # 파일 생성 여부 확인
+            if not os.path.exists(full_file_name):
+                logging.error(f"CSV 파일 생성 실패: {full_file_name}")
+                raise FileNotFoundError(f"CSV 파일 생성 실패: {full_file_name}")
+            else:
+                logging.info(f"CSV 파일 생성 성공: {full_file_name}")
+
+        except PermissionError:
+            logging.error(f"파일 쓰기 권한이 없습니다: {full_file_name}")
+            raise
         except Exception as e:
-            logging.info(f"create_csv_file Exception::: {e}")
-            raise e
+            logging.error(f"create_csv_file Exception::: {e}")
+            raise
         
     def create_source_file(json_data, source_file_name, full_file_path, mode):
         """

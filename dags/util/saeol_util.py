@@ -16,10 +16,10 @@ class SaeolUtil:
         msg_key = f"{current_time.strftime('%Y%m%d%H%M%S%f')[:-3]}{str(random.random())[2:10]}"
         return msg_key
     
-    def make_message(dtst_cd, query_id, params_dict, repeat_num, page_index):
+    def make_message(dtst_cd, query_id, params_dict, repeat_num, page_no):
         """
         dtst_cd별 data_list 및 message 생성
-        params: dtst_cd, params_dict, repeat_num, page_index
+        params: dtst_cd, params_dict, repeat_num, page_no
         return: message, message_body
         """
         if params_dict != {}:
@@ -28,13 +28,13 @@ class SaeolUtil:
 
         if dtst_cd == "data763":  # 부서정보
             data_key_list = ["ROW_NUM"]
-            data_value_map = {"ROW_NUM": page_index}
+            data_value_map = {"ROW_NUM": page_no}
         if dtst_cd == "data762":  # 직원정보
             data_key_list = ["DEP_CODE"]
             data_value_map = {"DEP_CODE": param_list[repeat_num - 1]}
         if dtst_cd == "data677":  # 새올_민원통계
             data_key_list = ["TAKE_YMD", "REAL_DEAL_YMD", "START_ROW_NO", "END_ROW_NO"]
-            data_value_map = {"TAKE_YMD": params, "REAL_DEAL_YMD": params, "START_ROW_NO": page_index, "END_ROW_NO": page_index + 199}
+            data_value_map = {"TAKE_YMD": params, "REAL_DEAL_YMD": params, "START_ROW_NO": page_no, "END_ROW_NO": page_no + 199}
 
         data_list = ''.join(f"<dataList><data>{data_value_map[key]}</data></dataList>" for key in data_key_list)
         message_body = f"""<query_id>{query_id}</query_id>{data_list}"""

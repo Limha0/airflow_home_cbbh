@@ -102,8 +102,8 @@ def csv_to_dw_hadoop():
             tn_data_bsc_info = TnDataBscInfo(**ext_data_dict['tn_data_bsc_info'])
             tn_clct_file_info = TnClctFileInfo(**ext_data_dict['tn_clct_file_info'])
             log_full_file_path = ext_data_dict['log_full_file_path']
-            final_file_path = kwargs['var']['value'].root_final_file_path  # local test
-            # final_file_path = kwargs['var']['value'].final_file_path
+            #final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
             
             dtst_cd = tn_data_bsc_info.dtst_cd
             pvdr_site_nm = tn_data_bsc_info.pvdr_site_nm
@@ -159,8 +159,8 @@ def csv_to_dw_hadoop():
         최종경로 파일 존재 여부 확인
         """
         select_log_info_stmt = get_select_stmt(None, None, None, None, None, "final")
-        final_file_path = kwargs['var']['value'].root_final_file_path  # local test
-        # final_file_path = kwargs['var']['value'].final_file_path
+        #final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+        final_file_path = kwargs['var']['value'].final_file_path
 
         dict_row = None
         try:
@@ -236,6 +236,15 @@ def csv_to_dw_hadoop():
         
         # SSHOperator 실행 및 결과 처리
         try:
+            # result = ssh_operator.execute(context=kwargs)  # 명령 실행
+            # logging.info(f"명령어 결과: {result}")
+
+            # # Base64 디코딩
+            # decoded_result = base64.b64decode(result).decode('utf-8')
+            # logging.info(f"디코딩된 명령어 결과: {decoded_result}")
+            
+            # # 줄바꿈을 기준으로 결과 분리 및 공백 제거
+            # lines = [line.strip() for line in decoded_result.split('\n') if line.strip()]
             ssh_hook = SSHHook(ssh_conn_id='ssh_hadoop_conn')
             ssh_client = ssh_hook.get_conn()
 
@@ -251,11 +260,11 @@ def csv_to_dw_hadoop():
             active_namenode = None
             for line in lines:
                 if "namenode01.gbgs.go.kr:8020" in line and "active" in line:
-                    active_namenode = "192.168.1.23"  #local test
-                    #active_namenode = "http://210.96.110.240:9870"
+                    #active_namenode = "192.168.1.23"  #local test
+                    active_namenode = "172.25.20.91"
                 elif "namenode02.gbgs.go.kr:8020" in line and "active" in line:
-                    active_namenode = "192.168.1.24"   #local test
-                    #active_namenode = "http://210.96.110.240:9871" 
+                    #active_namenode = "192.168.1.24"   #local test
+                    active_namenode = "172.25.20.92" 
             
             logging.info(f"Active 네임노드: {active_namenode}")
             return active_namenode
@@ -298,12 +307,14 @@ def csv_to_dw_hadoop():
                 else:
                     file_path = tn_data_bsc_info.pvdr_site_nm + log_full_file_path[-9:]
 
-                before_file_path = kwargs['var']['value'].root_final_file_path + file_path  # local test 파일 경로
-                # before_file_path = kwargs['var']['value'].final_file_path + file_path
+                #before_file_path = kwargs['var']['value'].root_final_file_path + file_path  # local test 파일 경로
+                before_file_path = kwargs['var']['value'].final_file_path + file_path
+                print("@@@@@@@before_file_path : "+ before_file_path)
                 file_name = tn_clct_file_info.insd_file_nm + '.' + tn_clct_file_info.insd_file_extn  # 파일 이름
 
                 # Hadoop 전송 경로 설정 (Hadoop 서버의 디렉토리)
                 hadoop_full_path = kwargs['var']['value'].hadoop_base_path + file_path  # 최종 Hadoop 경로
+                print("@@@@@@@hadoop_full_path : "+ hadoop_full_path)
 
                 # HDFS 클라이언트 설정
                 try:
@@ -324,23 +335,27 @@ def csv_to_dw_hadoop():
 
                     logging.info(f"로컬 파일 경로: {before_file_path}")
                     logging.info(f"HDFS 기본 경로: {hadoop_full_path}")
-
                     # logging.info(f"Active 네임노드에 경로 생성됨: {active_namenode}{hadoop_full_path}")
 
                     # 로컬에서 HDFS로 파일 전송
                     for file in os.listdir(before_file_path):
+                        print("#######before_file_path : "+ before_file_path)
                         local_file_path = os.path.join(before_file_path, file)
-                        # if file == file_name and os.path.isfile(local_file_path):
+                        print("#######local_file_path : "+ local_file_path)
+                        #if file == file_name and os.path.isfile(local_file_path):
                         # file_name과 일치하는 모든 CSV 파일을 찾음
                         #if file.endswith('.csv') and os.path.isfile(local_file_path):
                         # '_sample.csv'이 포함되지 않고, 확장자가 .csv인 모든 파일 전송
                         if file.endswith('.csv') and '_sample.csv' not in file and os.path.isfile(local_file_path):
+                            print("#######file : "+ file)
+                          #  print("#######file_name : "+ file_name)
                             hdfs_file_path = f"{hadoop_full_path}{file}"
+                            print("#######hdfs_file_path : "+ hdfs_file_path)
 
                             # HDFS에 파일 업로드
                             with open(local_file_path, 'rb') as f:
                                 client.write(hdfs_file_path, f, overwrite=True)
-                                print("asdfasdf333333 : " ,client.write(hdfs_file_path, f, overwrite=True))
+                                #print("test : " ,client.write(hdfs_file_path, f, overwrite=True))
                             logging.info(f"파일이 Active 네임노드로 전송됨: {hdfs_file_path}")
 
                     # 로그 업데이트
@@ -378,18 +393,12 @@ def csv_to_dw_hadoop():
         '''
         if dtst_cd == "data675":  # 신문고
             select_bsc_info_stmt = f'''
-                SELECT sn, a.dtst_cd, b.dtst_nm, a.dtst_dtl_cd, a.pvdr_site_cd, pvdr_inst_cd, pvdr_dept_nm, pvdr_pvsn_mthd_cd, pvdr_data_se_vl_one, pvdr_data_se_vl_two
-                    , pvdr_updt_cycle_cd, pvdr_sou_data_pvsn_stle, link_ntwk_otsd_insd_se, link_pvdr_url, link_data_clct_url, link_db_id, link_tbl_phys_nm, link_dtst_se_cd, link_file_crt_yn
-                    , link_file_merg_yn, link_file_extn, a.link_file_sprtr, link_yn, link_se_cd, clct_yn, link_clct_mthd, link_clct_mthd_dtl_cd, link_clct_cycle_cd, link_clct_job_id
-                    , encpt_yn, a.dw_load_yn, dw_load_mthd_cd, b.dw_tbl_phys_nm, addr_refine_yn, dtwrh_utlz_yn, data_rls_se_cd
-                    , portal_dwnld_pvsn_yn, a.use_yn, crt_dt, rmrk, rmrk_two, rmrk_three, data_se_col_one, data_se_col_two, rfrnc_phys_tbl_nm, rfrnc_col_nm, crtr_del_col_nm
-                    , (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND a.pvdr_site_cd = dtl_cd) AS pvdr_site_nm
-                FROM tn_data_bsc_info a, tc_pbadms_fld_mapng b
+                SELECT *, (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND pvdr_site_cd = dtl_cd) AS pvdr_site_nm
+                FROM tn_data_bsc_info 
                 WHERE 1=1
-                AND a.dtst_cd = b.dtst_cd
-                AND a.dtst_cd = 'data675'
-                AND b.dtst_nm = '{clct_data_nm}'
-                ORDER BY a.dtst_cd
+                AND dtst_cd = 'data675'
+                AND dtst_nm = '{clct_data_nm}'
+                ORDER BY dtst_cd
             '''
         if dtst_cd == "data648":  # 지방행정인허가 (20240909)
             select_bsc_info_stmt = f'''
@@ -474,7 +483,7 @@ def csv_to_dw_hadoop():
         if where_se == "final":  # 최종경로 파일 존재 여부 확인 대상 조회
             where_stmt = f"""AND ((link_ntwk_otsd_insd_se = '외부' AND b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_WORK_UNZIP}') OR
                             (link_ntwk_otsd_insd_se = '내부' AND (LOWER(b.step_se_cd) = '{CONST.STEP_FILE_INSD_SEND}' AND LOWER(b.stts_cd) = '{CONST.STTS_COMP}')) OR b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_ERROR_CHECK}')"""
-        if where_se == "send":  # 하둡 전송 대상 조회
+        if where_se == "send":  # 스토리지 전송 대상 조회
             where_stmt = f"""AND (b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_WORK_CHECK}' OR b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_ERROR_MOVE}')
                 AND b.clct_log_sn = c.clct_log_sn """
             from_stmt = f", tn_clct_file_info c"
@@ -502,7 +511,7 @@ def csv_to_dw_hadoop():
                             AND LOWER(a.link_clct_mthd_dtl_cd) IN ('on_file','open_api','esb','rdb','sftp')
                             AND LOWER(a.link_file_extn) IN ('csv', 'xls', 'zip')
                             AND LOWER(a.pvdr_inst_cd) != 'pi00011'
-        and a.dtst_cd != 'data648'
+        and a.dtst_cd != 'data648'                          
         and b.clct_ymd != '20250120'
                             {where_stmt}
                             {link_ntwk_extrl_inner_se_stmt}
@@ -539,14 +548,9 @@ def csv_to_dw_hadoop():
                                     AND LOWER(a.dtst_cd) != 'data648' -- 지방행정인허가 제외
                                 UNION ALL
                                 SELECT
-                                    b.clct_log_sn, b.dtst_cd,  b.dtst_dtl_cd, b.clct_ymd, c.dtst_nm, b.data_crtr_pnttm, b.reclect_flfmt_nmtm, b.step_se_cd, b.stts_cd,
+                                    b.clct_log_sn, b.dtst_cd,  b.dtst_dtl_cd, b.clct_ymd, a.dtst_nm, b.data_crtr_pnttm, b.reclect_flfmt_nmtm, b.step_se_cd, b.stts_cd,
                                     b.stts_dt, b.stts_msg, b.crt_dt, b.dw_rcrd_cnt, b.creatr_id, b.creatr_nm, b.creatr_dept_nm, b.estn_field_one, b.estn_field_two, b.estn_field_three, b.link_file_sprtr
-                                FROM tn_data_bsc_info a, th_data_clct_mastr_log b, tc_pbadms_fld_mapng c
-                                WHERE 1=1 
-                                    AND a.dtst_cd = b.dtst_cd
-                                    AND b.clct_data_nm = c.dtst_nm
-                                    AND LOWER(a.use_yn) = 'y'
-                                    AND LOWER(a.dw_load_yn) = 'y'
+                                FROM tn_data_bsc_info a, th_data_clct_mastr_log b
                                 WHERE 1=1 
                                     AND a.dtst_cd = b.dtst_cd
                                     AND b.clct_data_nm = a.dtst_nm
@@ -606,33 +610,26 @@ def csv_to_dw_hadoop():
             tn_clct_file_info = TnClctFileInfo(**loading_data_list['tn_clct_file_info'])
             log_full_file_path = loading_data_list['log_full_file_path']
             
-            final_file_path = kwargs['var']['value'].root_final_file_path  # local test
-            # final_file_path = kwargs['var']['value'].final_file_path
+            #final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
             db_ssh_temp_path = kwargs['var']['value'].db_ssh_temp_path
             print("final_file_path : " + final_file_path)
             print("db_ssh_temp_path : " + db_ssh_temp_path)
+
 
             file_name = ""
             full_file_name = ""
             if tn_data_bsc_info.link_file_crt_yn.lower() == 'y':
                 file_name = tn_clct_file_info.insd_file_nm + "." + tn_clct_file_info.insd_file_extn
                 full_file_name = final_file_path + tn_clct_file_info.insd_flpth + file_name
-                print("YYYYY_file_name : "+ file_name)
-                print("YYYYY_full_file_name : "+ full_file_name)
             else:
                 file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_") + ".csv"
                 full_file_name = final_file_path + file_name
-                print("file_name : "+ file_name)
-                print("full_file_name : "+ full_file_name)
             
             with session.begin() as conn:
                 try:
                     sftp_hook.create_directory(db_ssh_temp_path)
-                    print("sftp_hook.create_directory : "+ db_ssh_temp_path)
                     sftp_hook.store_file(db_ssh_temp_path + file_name, full_file_name)
-                    print("sftp_hook.store_file : "+ db_ssh_temp_path + file_name, full_file_name)
-                    print("@@@@@@@@create_directory : ",db_ssh_temp_path)
-                    print("##########store_file : ",db_ssh_temp_path, file_name, full_file_name)
                 except Exception as e:
                     # 로그 업데이트
                     th_data_clct_mastr_log = conn.get(ThDataClctMastrLog, th_data_clct_mastr_log.clct_log_sn)
@@ -654,8 +651,8 @@ def csv_to_dw_hadoop():
             tn_clct_file_info = TnClctFileInfo(**loading_data_list['tn_clct_file_info'])
             log_full_file_path = loading_data_list['log_full_file_path']
             
-            final_file_path = kwargs['var']['value'].root_final_file_path  # local test
-            # final_file_path = kwargs['var']['value'].final_file_path
+            #final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
             if tn_data_bsc_info.link_file_crt_yn.lower() == 'y':
                 file_name = tn_clct_file_info.insd_file_nm + "." + tn_clct_file_info.insd_file_extn
                 full_file_name = final_file_path + tn_clct_file_info.insd_flpth + file_name
@@ -706,14 +703,17 @@ def csv_to_dw_hadoop():
             tn_clct_file_info = TnClctFileInfo(**loading_data_list['loading_data_list']['tn_clct_file_info'])
             log_full_file_path = loading_data_list['loading_data_list']['log_full_file_path']
             db_ssh_temp_path = kwargs['var']['value'].db_ssh_temp_path
+            print("dw_loading_file_name_db_ssh_temp_path :"+ db_ssh_temp_path)
 
             temp_table_name = "temp_" + tn_data_bsc_info.dw_tbl_phys_nm
             data_crtr_pnttm = th_data_clct_mastr_log.data_crtr_pnttm
             link_file_sprtr = th_data_clct_mastr_log.link_file_sprtr
             if tn_data_bsc_info.link_file_crt_yn.lower() == 'y':
                 file_name = tn_clct_file_info.insd_file_nm + "." + tn_clct_file_info.insd_file_extn
+                print("YYYYYY_dw_loading_file_name : " + file_name)
             else:
                 file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_") + ".csv"
+                print("dw_loading_file_name : " + file_name)
 
             try:
                 # DW 적재
@@ -783,6 +783,7 @@ def csv_to_dw_hadoop():
         """
         file_column = loading_data_list['file_column']
         dtypedict = dtype_mapping(file_column, loading_data_list['dw_column_dict'])
+        
         logging.info(f"file_column::: {file_column}")
         logging.info(f"dw_column_dict::: {loading_data_list['dw_column_dict']}")
         try:
@@ -901,10 +902,10 @@ def csv_to_dw_hadoop():
         """
         file_column = loading_data_list['file_column']
         
-        # copy_stmt = f"""copy {temp_table_name} (
-        #     "{'", "'.join(file_column)}"
-        # ) from '{db_ssh_temp_path}{file_name}' delimiter '{link_file_sprtr}' csv header encoding 'UTF-8';
-        # """
+        #copy_stmt = f"""copy {temp_table_name} (
+        #    "{'", "'.join(file_column)}"
+        #) from '{db_ssh_temp_path}{file_name}' delimiter '{link_file_sprtr}' csv header encoding 'UTF-8';
+        #"""
 
         copy_stmt = f"""copy {temp_table_name} (
             "{'", "'.join(file_column)}"

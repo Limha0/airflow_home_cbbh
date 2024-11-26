@@ -17,15 +17,15 @@ from airflow.exceptions import AirflowSkipException
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 @dag(
-    dag_id="sdag_xml_to_csv_esb",
-    schedule="30 5 * * *",
+    dag_id="sdag_xml_to_csv_esb_fail_retry",
+    schedule="30 2 * * *",
     start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
     render_template_as_native_obj=True,
     tags=["xml_to_csv", "day", "int"],
 )
-def xml_to_csv_esb():
+def xml_to_csv_esb_fail_retry():
 
     # PostgresHook 객체 생성
     pg_hook = PostgresHook(postgres_conn_id='gsdpdb_db_conn')
@@ -43,26 +43,39 @@ def xml_to_csv_esb():
         return: collect_data_list
         """
 
+        run_conf = ""
+        if kwargs['dag_run'].conf != {}:
+            dtst_cd = kwargs['dag_run'].conf['dtst_cd']
+            run_conf = f"AND LOWER(a.dtst_cd) = '{dtst_cd}'"
+
         # 재수집 대상 로그 정보 조회
-        select_bsc_info_stmt = f'''
-                            SELECT *, (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND pvdr_site_cd = dtl_cd) AS pvdr_site_nm
-                            FROM tn_data_bsc_info
+        select_log_info_stmt = f'''
+                            SELECT b.*
+                            FROM tn_data_bsc_info a, th_data_clct_mastr_log b
                             WHERE 1=1
+                                AND a.dtst_cd = b.dtst_cd
                                 AND LOWER(link_yn) = 'y'
                                 AND LOWER(clct_yn) = 'y'
                                 AND LOWER(link_clct_mthd_dtl_cd) = 'tcp'
                                 AND LOWER(link_clct_cycle_cd) = 'day'
                                 AND link_ntwk_otsd_insd_se = '내부'
-                                AND LOWER(dtst_cd) = 'data675'
+                                AND LOWER(a.dtst_cd) = 'data675'
+                                AND LOWER(b.step_se_cd) NOT IN ('{CONST.STEP_FILE_STRGE_SEND}', '{CONST.STEP_DW_LDADNG}') -- 스토리지파일전송단계, DW 적재단계 제외
+                                AND COALESCE(stts_msg, '') != '{CONST.MSG_CLCT_COMP_NO_DATA}' -- 원천데이터 없음 제외
+                                AND NOT (LOWER(b.step_se_cd) = '{CONST.STEP_FILE_INSD_SEND}' AND LOWER(b.stts_cd) = '{CONST.STTS_COMP}') -- 내부파일전송 성공 제외
+                                {run_conf}
+                            ORDER BY b.clct_log_sn
                             '''
-        data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
-        data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-        collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
+        try:
+            collect_data_list = CommonUtil.set_fail_info(session, select_log_info_stmt, kwargs)
+        except Exception as e:
+            logging.info(f"select_collect_data_fail_info Exception::: {e}")
+            raise e
         if collect_data_list == []:
-            logging.info(f"select_collect_data_fail_info ::: 수집 대상없음 프로그램 종료")
+            logging.info(f"select_collect_data_fail_info ::: 재수집 대상없음 프로그램 종료")
             raise AirflowSkipException()
         return collect_data_list
-
+    
     @task_group(group_id='call_url_process')
     def call_url_process(collect_data_list):
 
@@ -324,7 +337,7 @@ def xml_to_csv_esb():
     collect_data_list = insert_collect_data_info()
     call_url_process.expand(collect_data_list = collect_data_list)
     
-dag_object = xml_to_csv_esb()
+dag_object = xml_to_csv_esb_fail_retry()
 
 # only run if the module is the main program
 if __name__ == "__main__":

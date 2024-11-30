@@ -18,7 +18,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 @dag(
     dag_id="sdag_xml_to_csv_esb",
-    schedule="30 5 * * *",
+    schedule="45 3 * * *",
     start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
@@ -54,6 +54,7 @@ def xml_to_csv_esb():
                                 AND LOWER(link_clct_cycle_cd) = 'day'
                                 AND link_ntwk_otsd_insd_se = '내부'
                                 AND LOWER(dtst_cd) = 'data675'
+                                and lower(dtst_dtl_cd) != 'data675_1'
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
@@ -333,7 +334,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2024,11,21,15,00),
+        execution_date=datetime(2024,11,27,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

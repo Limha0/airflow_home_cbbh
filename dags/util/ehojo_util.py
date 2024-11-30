@@ -3,29 +3,35 @@ import logging
 import jpype
 import os
 
-import configparser
+# import configparser
 
-# ConfigParser 객체 생성
-config = configparser.ConfigParser()
+# # ConfigParser 객체 생성
+# config = configparser.ConfigParser()
 
-# properties 파일 읽기
-#config.read('config.properties')
-config.read('/opt/airflow/dags/config.properties') #prod
+# # properties 파일 읽기
+# #config.read('config.properties')
+# config.read('/opt/airflow/dags/config.properties') #prod
 
-# 환경 변수 설정
-os.environ['PYTHONPATH'] = config.get('settings', 'PYTHONPATH')
-os.environ['JAVA_HOME'] = config.get('settings', 'JAVA_HOME')
+# # 환경 변수 설정
+# os.environ['PYTHONPATH'] = config.get('settings', 'PYTHONPATH')
+# os.environ['JAVA_HOME'] = config.get('settings', 'JAVA_HOME')
 
-# PATH는 기존 값과 합쳐서 설정
-os.environ['PATH'] = f"{config.get('settings', 'PATH')}:{os.environ['PATH']}"
+# # PATH는 기존 값과 합쳐서 설정
+# os.environ['PATH'] = f"{config.get('settings', 'PATH')}:{os.environ['PATH']}"
 
-# JAR 파일 경로 설정
+# # JAR 파일 경로 설정
+# path = f"{os.environ['PYTHONPATH']}/jars/crypto.jar"
+
+# # JVM 시작 (classpath에 설정한 JAR 경로 추가)
+# jpype.startJVM(classpath=path)
+
+# # Java 패키지 및 클래스 로드
+# jpkg = jpype.JPackage('com.indigo.util')
+# EncryptionUtils = jpkg.EncryptionUtils()
+
+
 path = f"{os.environ['PYTHONPATH']}/jars/crypto.jar"
-
-# JVM 시작 (classpath에 설정한 JAR 경로 추가)
 jpype.startJVM(classpath=path)
-
-# Java 패키지 및 클래스 로드
 jpkg = jpype.JPackage('com.indigo.util')
 EncryptionUtils = jpkg.EncryptionUtils()
 
@@ -38,10 +44,10 @@ EncryptionUtils = jpkg.EncryptionUtils()
 
 class EhojoUtil:
 
-    def set_url(dtst_cd, params_dict, repeat_num, page_index, interface_id, encrypt_key_ehojo, data_crtr_pnttm):
+    def set_url(dtst_cd, params_dict, repeat_num, pagd_no, interface_id, encrypt_key_ehojo, data_crtr_pnttm):
         """
         dtst_cd별 url 설정
-        params: dtst_cd, params_dict, repeat_num, page_index, interface_id, encrypt_key_ehojo
+        params: dtst_cd, params_dict, repeat_num, pagd_no, interface_id, encrypt_key_ehojo
         return: json_data
         """
         # data_header 설정
@@ -57,7 +63,7 @@ class EhojoUtil:
         # data_body 설정
         data_body = {
             "pageSize" : "3000"
-            , "curPage" : str(page_index)
+            , "curPage" : str(pagd_no)
         }
         
         if dtst_cd in {"data690", "data691"}:  # 조기집행내역, 집행실적세부사업별통계목별집계
@@ -80,7 +86,7 @@ class EhojoUtil:
             "body": str(encrypted_body)
         }
         json_data = json.dumps(data).encode("utf-8")
-        # logging.info(f"요청 전문::: {json_data}")
+        #logging.info(f"요청 전문::: {json_data}")
         return json_data
     
     def decrypt_body(json_data, encrypt_key_ehojo):
@@ -92,5 +98,5 @@ class EhojoUtil:
         encrypted_body = json_data["body"]
         decrypted_body = json.loads(str(EncryptionUtils.decryptStringAria(encrypted_body, encrypt_key_ehojo)))
         json_data["body"] = decrypted_body
-        # logging.info(f"요청 결과 전문::: {json_data}")
+        #logging.info(f"요청 결과 전문::: {json_data}")
         return json_data

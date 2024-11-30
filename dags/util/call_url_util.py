@@ -394,6 +394,7 @@ class CallUrlUtil:
     
     @staticmethod
     def get_request_message(retry_num, repeat_num, page_no, return_url, total_page, full_file_name, header, mode):
+        logging.info(f"[DEBUG] Inside get_request_message: retry_num={retry_num}, repeat_num={repeat_num}, page_no={page_no}, return_url={return_url}, total_page={total_page}, full_file_name={full_file_name}, header={header}, mode={mode}")
         if retry_num == 0 and repeat_num == 1 and page_no == 1:  # 첫 호출
             if full_file_name is not None:
                 if os.path.exists(full_file_name):
@@ -434,6 +435,7 @@ class CallUrlUtil:
                 logging.error("데이터프레임이 비어 있음. CSV 파일 생성 중단.")
                 raise ValueError("데이터프레임이 비어 있음. CSV 파일 생성 불가.")
             df = df.replace("\n"," ", regex=True).replace("\r\n"," ", regex=True).replace("\r"," ", regex=True).apply(lambda x: (x.str.strip() if x.dtypes == 'object' and x.str._inferred_dtype == 'string' else x), axis = 0)  # 개행문자 제거, string 양 끝 공백 제거
+        
             full_file_name = full_file_path + file_name
             # 5분_소통정보, 대기오염정보_측정소별_실시간_측정정보_조회(->대기오염_국가측정망_시간대별_측정정보), 실시간_측정정보_조회(->대기오염_자체측정망_시간대별_측정정보) - clct_sn 생성하지않음
             if '5분_소통정보' in file_name or '대기오염_국가측정망_시간대별_측정정보' in file_name or '대기오염_자체측정망_시간대별_측정정보' in file_name:
@@ -456,10 +458,6 @@ class CallUrlUtil:
                     if row_count != 0:
                         column_order = pd.read_csv(full_file_name, sep= link_file_sprtr, low_memory = False).columns.drop('clct_sn')
                         df = df.reindex(columns=column_order, fill_value=None)
-                        # df = df[column_order]
-                        print("@@@@@@df : ",df)
-                    
-
                     df.to_csv(full_file_name, sep=link_file_sprtr, header=header, index_label="clct_sn", mode=mode, encoding='utf-8-sig')
         # 파일 생성 여부 확인
             if not os.path.exists(full_file_name):
@@ -511,7 +509,7 @@ class CallUrlUtil:
                 th_data_clct_contact_fail_hstry_log.estn_field_two = file_path
                 conn.add(th_data_clct_contact_fail_hstry_log)
         except Exception as e:
-            logging.info(f"insert_fail_history_log Exception::: {e}")
+            logging.info(f"insert_th_data_clct_contact_fail_hstry_log Exception::: {e}")
             raise e
         
     
@@ -560,28 +558,130 @@ class CallUrlUtil:
         else:
             return value
         
-    def get_total_count(url):
+    def get_total_count(url,data_se_col_one,pvdr_data_se_vl_three,authKey,dtst_cd):
         """
         총 데이터 건수 조회 url 호출
         params: url, th_data_clct_mastr_log, session
         return: total_count
         """
+        import xml.etree.ElementTree as ET
+        
+        # WSDL URL 및 서비스 엔드포인트
+        service_url = url
+
+          # 인증 정보
+        systemid = 'data_gyeongsan'
+        loginid = '78100900'
+        deptCd = '5130234'
+        authKey = authKey
+
+        # 파라미터를 포함한 SOAP 요청 생성  
+        if dtst_cd == "data1022":
+            soap_request = f'''
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                            xmlns:bms="http://hamoni.mogaha.go.kr/bms"
+                            xmlns:gov="java:gov.bms.lnk.ini.vo">
+            <soapenv:Header/>
+            <soapenv:Body>
+                <bms:{data_se_col_one}>
+                    <gov:login>
+                        <gov:systemId>{systemid}</gov:systemId>
+                        <gov:loginId>{loginid}</gov:loginId>
+                        <gov:deptCd>{deptCd}</gov:deptCd>
+                        <gov:authKey>{authKey}</gov:authKey>
+                    </gov:login>
+                    <gov:{pvdr_data_se_vl_three}/>
+                </bms:{data_se_col_one}>
+            </soapenv:Body>
+            </soapenv:Envelope>
+            '''
+        else:
+            systemCode = "datags"
+            reqNum = 1
+            
+            soap_request = f'''
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                            xmlns:bms="http://hamoni.mogaha.go.kr/bms"
+                            xmlns:gov="java:gov.bms.lnk.ini.vo">
+            <soapenv:Header/>
+            <soapenv:Body>
+                <bms:{data_se_col_one}>
+                    <gov:loginVo>
+                        <gov:systemId>{systemid}</gov:systemId>
+                        <gov:loginId>{loginid}</gov:loginId>
+                        <gov:deptCd>{deptCd}</gov:deptCd>
+                        <gov:authKey>{authKey}</gov:authKey>
+                    </gov:loginVo>
+                    <gov:{pvdr_data_se_vl_three}>
+                        <gov:systemCode>{systemCode}</gov:systemCode>
+                        <gov:reqNum>{reqNum}</gov:reqNum>
+                    </gov:{pvdr_data_se_vl_three}>
+                </bms:{data_se_col_one}>
+            </soapenv:Body>
+            </soapenv:Envelope>
+            '''
+
+        # 파라미터를 포함한 SOAP 요청 생성
+        # soap_request = f'''
+        # <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+        #                   xmlns:bms="http://hamoni.mogaha.go.kr/bms"
+        #                   xmlns:gov="java:gov.bms.lnk.ini.vo">
+        #    <soapenv:Header/>
+        #    <soapenv:Body>
+        #       <bms:{data_se_col_one}>
+        #          <gov:login>
+        #             <gov:systemId>{systemid}</gov:systemId>
+        #             <gov:loginId>{loginid}</gov:loginId>
+        #             <gov:deptCd>{deptCd}</gov:deptCd>
+        #             <gov:authKey>{authKey}</gov:authKey>
+        #          </gov:login>
+        #          <gov:{pvdr_data_se_vl_three}/>
+        #       </bms:{data_se_col_one}>
+        #    </soapenv:Body>
+        # </soapenv:Envelope>
+        # '''
+
+        # HTTP 요청 헤더 설정
+        headers = {
+            'Content-Type': 'text/xml;charset=UTF-8'
+        }
+
+    
         try:
-            retry_num = 0
-            while retry_num <= 3:
-                response = requests.get(url, verify= False)
-                response_code = response.status_code
-                if response_code == 200:
-                    total_count = int(response.text)
-                    break
-                else:
-                    logging.info(f"get_total_count response_code::: {response_code}")
-                    retry_num += 1
-                    logging.info(f"get_total_count 재시도 횟수::: {retry_num}")
-            if retry_num > 3:
-                raise e
-        except Exception as e:
-            logging.info(f"get_total_count Exception::: {e}")
-            raise e
-        return total_count
+            # 요청 전 SOAP 데이터 확인
+            logging.info(f"Sending SOAP request to URL: {service_url}")
+            logging.info(f"SOAP Request:\n{soap_request}")
+            # 서비스 호출
+            response = requests.post(service_url, data=soap_request, headers=headers)
+            response.raise_for_status()  # HTTP 에러 발생 시 예외 처리
+
+            # 응답 출력
+            logging.info(f"Response status code: {response.status_code}")
+            logging.info(f"Response content:\n{response.text}")
+            
+            root = ET.fromstring(response.content)
+            namespaces = {'soapenv': 'http://schemas.xmlsoap.org/soap/envelope/',
+                  'n1': 'http://hamoni.mogaha.go.kr/bms',
+                  'ns2': 'java:gov.bms.lnk.ini.vo'}
+
+            if dtst_cd == 'data1022':
+                total_count_element = root.find('.//ns2:totalCnt', namespaces)
+            else :
+                total_count_element = root.find('.//ns2:totCnt', namespaces)
+
+            if total_count_element is not None:
+                total_count = int(total_count_element.text)
+                logging.info(f"Total document count extracted: {total_count}")
+                return total_count
+            else:
+                logging.warning("Failed to find 'totalCnt' in the SOAP response.")
+                return 0
+
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error during SOAP request: {e}")
+            return 0
+
+        except ET.ParseError as e:
+            logging.error(f"Error parsing SOAP response: {e}")
+            return 0
     

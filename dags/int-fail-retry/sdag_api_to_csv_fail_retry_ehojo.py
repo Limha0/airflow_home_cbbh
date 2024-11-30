@@ -42,8 +42,8 @@ def fail_retry_ehojo():
         """
         run_conf = ""
         if kwargs['dag_run'].conf != {}:
-            dtst_cd = kwargs['dag_run'].conf['dtst_cd']
-            run_conf = f"AND LOWER(a.dtst_cd) = '{dtst_cd}'"
+            dtst_cd = kwargs['dag_run'].conf['dtst_dtl_cd']
+            run_conf = f"AND LOWER(a.dtst_dtl_cd) = '{dtst_cd}'"
 
         # 재수집 대상 로그 정보 조회
         select_log_info_stmt = f'''
@@ -67,6 +67,7 @@ def fail_retry_ehojo():
                                 {run_conf}
                             ORDER BY b.clct_log_sn
                             '''
+        logging.info(f"select_collect_data_fail_info !!!!!::: {select_log_info_stmt}")
         try:
             collect_data_list = CommonUtil.set_fail_info(session, select_log_info_stmt, kwargs)
         except Exception as e:
@@ -168,7 +169,7 @@ def fail_retry_ehojo():
                                 repeat_num += 1
                                 break
                             else:  # 파라미터 길이 != 1)
-                                # th_data_clct_stts_hstry_log 에 입력
+                                # th_data_clct_contact_fail_hstry_log 에 입력
                                 CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, base_url, file_path, session, params_dict['param_list'][repeat_num - 1], page_no)
 
                                 # 총 페이지 수만큼 덜 돌았을 때

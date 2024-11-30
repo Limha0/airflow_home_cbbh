@@ -49,8 +49,8 @@ def api_to_csv_fail_retry():
         run_conf = ""
         dtst_cd = ""
         if kwargs['dag_run'].conf != {}:
-            dtst_cd = kwargs['dag_run'].conf['dtst_cd']
-            run_conf = f"AND LOWER(a.dtst_cd) = '{dtst_cd}'"
+            dtst_cd = kwargs['dag_run'].conf['dtst_dtl_cd']
+            run_conf = f"AND LOWER(a.dtst_dtl_cd) = '{dtst_cd}'"
         
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul").strftime("%Y%m%d")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         
@@ -71,6 +71,7 @@ def api_to_csv_fail_retry():
                                 {run_conf}
                             ORDER BY b.clct_log_sn
                             '''
+        logging.info(f"select_collect_data_fail_info !!!!!::: {select_log_info_stmt}")
         try:
             collect_data_list = CommonUtil.set_fail_info(session, select_log_info_stmt, kwargs)
         except Exception as e:
@@ -369,6 +370,7 @@ def api_to_csv_fail_retry():
                                     AND COALESCE(stts_msg, '') NOT IN ('{CONST.MSG_CLCT_COMP_NO_DATA}') -- 원천데이터 없음 제외
                                 ORDER BY b.clct_log_sn
                                 '''
+        logging.info(f"select_collect_data_fail_info_2nd !!!!!::: {select_log_info_stmt}")
         try:
             log_data_lists = []
             with session.begin() as conn:

@@ -46,6 +46,7 @@ def api_to_download_kosis_fail_retry():
             with session.begin() as conn:
                 for dict_row in conn.execute(select_log_info_stmt).all():
                     clct_ymd.append(dict_row.clct_ymd)
+            logging.info(f"select_count_fail_log !!!!!!!!!::: {select_count_fail_log}")
         except Exception as e:
             logging.info(f"select_count_fail_log Exception::: {e}")
             raise e
@@ -64,8 +65,8 @@ def api_to_download_kosis_fail_retry():
         log_info_stmt = ""
         run_conf = ""
         if kwargs['dag_run'].conf != {}:
-            dtst_cd = kwargs['dag_run'].conf['dtst_cd']
-            run_conf = f"AND LOWER(a.dtst_cd) = '{dtst_cd}'"
+            dtst_cd = kwargs['dag_run'].conf['dtst_dtl_cd']
+            run_conf = f"AND LOWER(a.dtst_dtl_cd) = '{dtst_cd}'"
         
         # 재수집 대상 로그 정보 조회
         if set_stmt == None:
@@ -92,6 +93,7 @@ def api_to_download_kosis_fail_retry():
                                     {run_conf}
                                     {log_info_stmt}
                                 '''
+        logging.info(f"set_select_stmt___select_log_info_stmt::: {select_log_info_stmt}")
         return select_log_info_stmt
 
     @task_group(group_id='call_url_process')

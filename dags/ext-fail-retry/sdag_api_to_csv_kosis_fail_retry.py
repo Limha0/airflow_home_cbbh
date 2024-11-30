@@ -64,8 +64,8 @@ def api_to_csv_kosis_fail_retry():
         log_info_stmt = ""
         run_conf = ""
         if kwargs['dag_run'].conf != {}:
-            dtst_cd = kwargs['dag_run'].conf['dtst_cd']
-            run_conf = f"AND LOWER(a.dtst_cd) = '{dtst_cd}'"
+            dtst_cd = kwargs['dag_run'].conf['dtst_dtl_cd']
+            run_conf = f"AND LOWER(a.dtst_dtl_cd) = '{dtst_cd}'"
         
         # 재수집 대상 로그 정보 조회
         if set_stmt == None:
@@ -92,6 +92,7 @@ def api_to_csv_kosis_fail_retry():
                                     {run_conf}
                                     {log_info_stmt}
                                 '''
+        logging.info(f"select_collect_data_fail_info !!!!!::: {select_log_info_stmt}")
         return select_log_info_stmt
 
     @task_group(group_id='call_url_process')

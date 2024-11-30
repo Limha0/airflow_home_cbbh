@@ -62,6 +62,7 @@ def api_to_csv_localdata():
                                     AND COALESCE(stts_msg, '') != '{CONST.MSG_CLCT_COMP_NO_DATA}' -- 원천데이터 없음 제외
                                 ORDER BY b.clct_log_sn
                                 '''
+        logging.info(f"select_collect_data_fail_info !!!!!::: {select_log_info_stmt}")
         try:
             collect_data_list = CommonUtil.set_fail_info(session, select_log_info_stmt, kwargs)
         except Exception as e:

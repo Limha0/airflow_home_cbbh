@@ -41,8 +41,8 @@ def rdb_to_csv_fail_retry():
         """
         run_conf = ""
         if kwargs['dag_run'].conf != {}:
-            dtst_cd = kwargs['dag_run'].conf['dtst_cd']
-            run_conf = f"AND LOWER(a.dtst_cd) = '{dtst_cd}'"
+            dtst_cd = kwargs['dag_run'].conf['dtst_dtl_cd']
+            run_conf = f"AND LOWER(a.dtst_dtl_cd) = '{dtst_cd}'"
 
         # 재수집 대상 로그 정보 조회
         select_log_info_stmt = f'''
@@ -61,6 +61,7 @@ def rdb_to_csv_fail_retry():
                                 {run_conf}
                             ORDER BY b.clct_log_sn
                             '''
+        logging.info(f"select_collect_data_fail_info !!!!!::: {select_log_info_stmt}")
         try:
             collect_data_list = CommonUtil.set_fail_info(session, select_log_info_stmt, kwargs)
         except Exception as e:

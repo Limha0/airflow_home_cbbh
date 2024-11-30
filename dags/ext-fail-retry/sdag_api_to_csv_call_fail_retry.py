@@ -72,8 +72,8 @@ def api_to_csv_call_fail_retry():
         """
         run_conf = ""
         if kwargs['dag_run'].conf != {}:
-            dtst_cd = kwargs['dag_run'].conf['dtst_cd']
-            run_conf = f"AND LOWER(dtst_cd) = '{dtst_cd}'"
+            dtst_cd = kwargs['dag_run'].conf['dtst_dtl_cd']
+            run_conf = f"AND LOWER(dtst_dtl_cd) = '{dtst_cd}'"
         
         distinct_stmt = ""
         where_stmt = ""
@@ -90,6 +90,7 @@ def api_to_csv_call_fail_retry():
                         {run_conf}
                         {where_stmt}
                     '''
+        
         return select_stmt
 
     @task_group(group_id='call_url_process')
@@ -99,6 +100,7 @@ def api_to_csv_call_fail_retry():
         @task
         def select_collect_data_fail_info(fail_log_sn_list, **kwargs):
             """
+            
             th_data_clct_contact_fail_hstry_log 테이블에서 재수집 대상 정보 조회
             return: fail_data_lists
             """

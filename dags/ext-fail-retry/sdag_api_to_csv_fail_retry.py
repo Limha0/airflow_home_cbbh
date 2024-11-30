@@ -48,8 +48,8 @@ def api_to_csv_fail_retry():
         run_conf = ""
         dtst_cd = ""
         if kwargs['dag_run'].conf != {}:
-            dtst_cd = kwargs['dag_run'].conf['dtst_cd']
-            run_conf = f"AND LOWER(a.dtst_cd) = '{dtst_cd}'"
+            dtst_cd = kwargs['dag_run'].conf['dtst_dtl_cd']
+            run_conf = f"AND LOWER(a.dtst_dtl_cd) = '{dtst_cd}'"
 
         # 재수집 대상 로그 정보 조회
         select_log_info_stmt = f'''
@@ -77,16 +77,26 @@ def api_to_csv_fail_retry():
                                 {run_conf}
                             ORDER BY b.clct_log_sn
                             '''
+        logging.info(f"select_collect_data_fail_info !!!!!::: {select_log_info_stmt}")
+        # try:
+        #     TriggerDagRunOperator(
+        #         trigger_dag_id='sdag_api_to_csv_call_fail_retry',
+        #         task_id='sdag_api_to_csv_call_fail_retry',
+        #         execution_date=now(),
+        #         wait_for_completion=True,
+        #         poke_interval=30,
+        #         allowed_states=["success"],
+        #         conf={"dtst_cd": dtst_cd}
+        #     ).execute(kwargs)
+        #     collect_data_list = CommonUtil.set_fail_info(session, select_log_info_stmt, kwargs)
+        # except Exception as e:
+        #     logging.info(f"select_collect_data_fail_info Exception::: {e}")
+        #     raise e
+        # if collect_data_list == []:
+        #     logging.info(f"select_collect_data_fail_info ::: 재수집 대상없음 프로그램 종료")
+        #     raise AirflowSkipException()
+        # return collect_data_list
         try:
-            TriggerDagRunOperator(
-                trigger_dag_id='sdag_api_to_csv_call_fail_retry',
-                task_id='sdag_api_to_csv_call_fail_retry',
-                execution_date=now(),
-                wait_for_completion=True,
-                poke_interval=30,
-                allowed_states=["success"],
-                conf={"dtst_cd": dtst_cd}
-            ).execute(kwargs)
             collect_data_list = CommonUtil.set_fail_info(session, select_log_info_stmt, kwargs)
         except Exception as e:
             logging.info(f"select_collect_data_fail_info Exception::: {e}")

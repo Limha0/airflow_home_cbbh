@@ -19,7 +19,7 @@ from airflow.exceptions import AirflowSkipException
     catchup=False,
     # render Jinja template as native Python object
     render_template_as_native_obj=True,
-    tags=["rdb_bis", "month", "int"],
+    tags=["rdb_bis", "month", "int","db_to_csv"],
 )
 def sdag_rdb_bis():
 
@@ -48,7 +48,7 @@ def sdag_rdb_bis():
                                 AND LOWER(link_clct_mthd_dtl_cd) = 'rdb'
                                 AND LOWER(link_clct_cycle_cd) = 'month'
                                 AND link_ntwk_otsd_insd_se = '내부'
-                                AND LOWER(pvdr_site_cd) = 'ps00003' --bis
+                                AND LOWER(pvdr_site_cd) = 'ps00003'
                             ORDER BY sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
@@ -125,8 +125,8 @@ def sdag_rdb_bis():
             return: file_path: tn_clct_file_info 테이블에 저장할 파일 경로
             """
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
+            #final_file_path = kwargs['var']['value'].root_final_file_path  # local test
             file_path = CommonUtil.create_directory(collect_data_list, session, data_interval_end, final_file_path, "n")
             return file_path
 
@@ -145,8 +145,8 @@ def sdag_rdb_bis():
             tn_data_bsc_info = TnDataBscInfo(**collect_data_list['tn_data_bsc_info'])
             tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
             log_full_file_path = collect_data_list['log_full_file_path']
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
+            #final_file_path = kwargs['var']['value'].root_final_file_path  # local test
             full_file_path = final_file_path + file_path
 
             # 연계 DB SQL문
@@ -198,18 +198,23 @@ def sdag_rdb_bis():
                         dw_column_dict = []  # DW 컬럼명
                         for dict_row in conn.execute(get_data_column_stmt).all():
                             dw_column_dict.append(dict_row[0])
+                            
+                    logging.info(f"데이터프레임 컬럼: {df.columns.tolist()}")
                     logging.info(f"DW 컬럼: {dw_column_dict}")
+
 
                     if dw_column_dict != []:
                         df = pd.read_csv(full_file_name, sep=link_file_sprtr)
-                        # 한글 컬럼명을 영문으로 매핑
-                        column_mapping = {
-                            "노선상태": "rte_stts",
-                            "노선유형": "rte_type",
-                            # 필요하면 다른 컬럼 매핑도 여기에 추가
-                        }
-                        df.rename(columns=column_mapping, inplace=True)
-                        df.to_csv(full_file_name, index= False, sep=link_file_sprtr, encoding='utf-8-sig')
+
+                        # NULL 바이트 및 기타 문제값 제거
+                        df.replace({r'\x00': '', r'NUL': '', None: '', 'null': ''}, regex=True, inplace=True)
+                        df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)  # 공백 제거
+                        df.dropna(how='all', inplace=True)  # 빈 행 제거
+                        # 컬럼 매핑
+                        df.columns = dw_column_dict
+
+                        # 수정된 CSV 저장
+                        df.to_csv(full_file_name, index=False, sep=link_file_sprtr, encoding='utf-8-sig')
 
                 # 파일 사이즈 확인
                 if os.path.exists(full_file_name):

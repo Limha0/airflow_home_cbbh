@@ -18,7 +18,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 @dag(
     dag_id="sdag_xml_to_csv_esb",
-    schedule="45 3 * * *",
+    schedule="40 5 * * *",
     start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object

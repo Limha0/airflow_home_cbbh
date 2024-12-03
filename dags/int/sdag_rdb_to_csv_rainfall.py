@@ -1,6 +1,6 @@
 import logging
 
-from pendulum import datetime, from_format, now
+from pendulum import datetime, from_format,now
 from airflow.decorators import dag, task, task_group
 from util.common_util import CommonUtil
 from dto.tn_data_bsc_info import TnDataBscInfo
@@ -54,7 +54,7 @@ def rdb_to_csv_rainfall():
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
         logging.info(f"data_interval_start: {data_interval_start}, data_interval_end: {data_interval_end}")
-        if now().strftime("%H") == '05':
+        if now().strftime("%H") == '04':
             data_interval_start = now().add(days=-1)
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
         if collect_data_list == []:
@@ -188,24 +188,6 @@ def rdb_to_csv_rainfall():
                 df.index += 1
                 df.to_csv(file_name, sep = link_file_sprtr, header = True, index_label= "clct_sn", encoding='utf-8-sig')
                 full_file_name = full_file_path + file_name
-
-                # if dtst_cd == "data803":
-                #     # csv 한글 헤더를 DW 영문 컬럼명으로 변경
-                #     get_data_column_stmt = f"""
-                #                 SELECT column_name
-                #                 FROM information_schema.columns
-                #                 WHERE table_name = '{tn_data_bsc_info.dw_tbl_phys_nm}'
-                #                 ORDER BY ordinal_position
-                #             """
-                #     with session.begin() as conn:
-                #         dw_column_dict = []  # DW 컬럼명
-                #         for dict_row in conn.execute(get_data_column_stmt).all():
-                #             dw_column_dict.append(dict_row[0])
-
-                #     if dw_column_dict != []:
-                #         df = pd.read_csv(full_file_name, sep=link_file_sprtr)
-                #         df.columns = dw_column_dict
-                #         df.to_csv(full_file_name, index= False, sep=link_file_sprtr, encoding='utf-8-sig')
 
                 # 파일 사이즈 확인
                 if os.path.exists(full_file_name):

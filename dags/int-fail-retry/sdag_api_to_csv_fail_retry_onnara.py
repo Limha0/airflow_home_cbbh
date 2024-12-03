@@ -58,7 +58,7 @@ def api_to_csv_fail_retry_onnara():
                                 AND LOWER(link_clct_mthd_dtl_cd) = 'open_api'
                                 AND LOWER(link_clct_cycle_cd) = 'month'
                                 AND link_ntwk_otsd_insd_se = '내부'
-                                AND LOWER(a.dtst_cd) IN ('data1022') -- 전체사용자목록, 전체조직목록 ,부서별문서관리카드목록
+                                AND LOWER(a.dtst_cd) IN ('data1033','data1027','data1022') -- 전체사용자목록, 전체조직목록 ,부서별문서관리카드목록
                                 AND LOWER(b.step_se_cd) NOT IN ('{CONST.STEP_FILE_STRGE_SEND}', '{CONST.STEP_DW_LDADNG}') -- 스토리지파일전송단계, DW 적재단계 제외
                                 AND COALESCE(stts_msg, '') != '{CONST.MSG_CLCT_COMP_NO_DATA}' -- 원천데이터 없음 제외
                                 AND NOT (LOWER(b.step_se_cd) = '{CONST.STEP_FILE_INSD_SEND}' AND LOWER(b.stts_cd) = '{CONST.STTS_COMP}') -- 내부파일전송 성공 제외
@@ -276,82 +276,116 @@ def api_to_csv_fail_retry_onnara():
                                     extracted_data.append(filtered_item)
                                 print("!!!!extracted_data :::::::::",extracted_data)
 
-                            if dtst_cd == 'data1027':  # 전체조직목록 getAllDeptListView
+                        if dtst_cd == 'data1027':  # 전체조직목록 getAllDeptListView
                                 # DOCUMENT 또는 데이터 확인
-                                dct_list_element = body.find(".//ns2:orgSrvDeptClient3Vo", namespaces=namespaces)
-                                document_string = ET.tostring(dct_list_element, encoding='utf-8', method='xml').decode()
-                                
-                                if res_code == "INI0000":
-                                    json_data = XMLtoDict().parse(document_string)
-
-                                    # 원천 데이터 저장
-                                    if link_file_crt_yn.lower() == "y":
-                                        CallUrlUtil.create_source_file(json_data, source_file_name, full_file_path, mode)
-
-                                    result = CallUrlUtil.read_json(json_data, pvdr_site_cd, pvdr_inst_cd, dtst_cd, tn_data_bsc_info.data_se_col_one)
-                                    result_json = result['result_json_array']
-                                    result_size = len(result_json)
-                                    print("result_json :::::::::",result_json)
-                                    
-                                # 원본 헤더 (예시)
-                                    original_headers = [
-                                        "clct_sn", "actGubun", "actResultCode", "actResultName", "address", "addressDetail", "chiefId", "chiefLoginId", 
-                                        "chiefPosition", "description", "descriptionId", "displayName", "docDeptId", "docDeptName", "docSystemInfo", "fax", 
-                                        "homePage", "isDeleted", "orgId", "orgKind", "orgKindName", "orgName", "orgOrder", "orgSrvDeptClientDetailList2Vos", 
-                                        "orgType", "parentOrgId", "relayType", "subOrgType", "telephone", "topOrgId", "totCnt", "whenCreated", "whenDeleted", 
-                                        "zipCode", "data_crtr_pnttm", "clct_pnttm", "clct_log_sn", "page_no", "BmsLnkIniOrgSrvDeptClientDetailList2VO_etc", 
-                                        "BmsLnkIniOrgSrvDeptClientDetailList2VO_isDefault", "BmsLnkIniOrgSrvDeptClientDetailList2VO_isUse", 
-                                        "BmsLnkIniOrgSrvDeptClientDetailList2VO_manageGubun"
-                                    ]
-
-                                    # 필터링된 헤더 목록
-                                    required_headers = [
-                                        "actGubun", "orgId", "orgName", "parentOrgId", "orgType", "orgOrder", 
-                                        "topOrgId", "description", "descriptionId", "whenCreated", "whenDeleted", 
-                                        "isDeleted", "chiefId", "chiefLoginId", "chiefPosition", "homePage", 
-                                        "zipCode", "address", "addressDetail", "telephone", "fax", "subOrgType", 
-                                        "displayName", "orgKind", "orgKindName", "docDeptId", "docDeptName", 
-                                        "relayType", "docSystemInfo", "totCnt", "actResultCode", "actResultName", 
-                                        "manageGubun", "etc", "isUse", "isDefault"
-                                    ]
-
-                                    filtered_headers = [header for header in original_headers if header in required_headers]
-                                    print("filtered_headers:::::",filtered_headers)
-                                    
-
-                                    extracted_data = []
-            
-                                    for item in result_json:
-                                        filtered_item = {}
-                                        
-                                        # 각 키-값 쌍을 순회하면서 처리
-                                        for key, value in item.items():
-                                            # 접두어 제거: 마지막 '}' 이후의 텍스트를 키로 사용
-                                            clean_key = key.split('}')[-1] if '}' in key else key
-                                            
-                                            # 원하는 필드만 추출
-                                            if clean_key in filtered_headers:
-                                                filtered_item[clean_key] = value
-                                        
-                                        # 추출한 데이터 리스트에 추가
-                                        extracted_data.append(filtered_item)
-                                    print("!!!!extracted_data :::::::::",extracted_data)
+                            dct_list_element = body.find(".//ns2:orgSrvDeptClient3Vo", namespaces=namespaces)
+                            document_string = ET.tostring(dct_list_element, encoding='utf-8', method='xml').decode()
                             
-                            if dtst_cd == 'data1033':  # 전체사용자목록 getAllUserInfoListView
-                                # DOCUMENT 또는 데이터 확인
-                                dct_list_element = body.find(".//ns2:orgUserInfoVo", namespaces=namespaces)
-                                document_string = ET.tostring(dct_list_element, encoding='utf-8', method='xml').decode()
+                            if res_code == "INI0000":
+                                json_data = XMLtoDict().parse(document_string)
+
+                                # 원천 데이터 저장
+                                if link_file_crt_yn.lower() == "y":
+                                    CallUrlUtil.create_source_file(json_data, source_file_name, full_file_path, mode)
+
+                                result = CallUrlUtil.read_json(json_data, pvdr_site_cd, pvdr_inst_cd, dtst_cd, tn_data_bsc_info.data_se_col_one)
+                                result_json = result['result_json_array']
+                                result_size = len(result_json)
+                                print("result_json :::::::::",result_json)
                                 
-                                if res_code == "INI0000":
-                                    json_data = XMLtoDict().parse(document_string)
+                            # 원본 헤더 (예시)
+                                original_headers = [
+                                    "clct_sn", "actGubun", "actResultCode", "actResultName", "address", "addressDetail", "chiefId", "chiefLoginId", 
+                                    "chiefPosition", "description", "descriptionId", "displayName", "docDeptId", "docDeptName", "docSystemInfo", "fax", 
+                                    "homePage", "isDeleted", "orgId", "orgKind", "orgKindName", "orgName", "orgOrder", "orgSrvDeptClientDetailList2Vos", 
+                                    "orgType", "parentOrgId", "relayType", "subOrgType", "telephone", "topOrgId", "totCnt", "whenCreated", "whenDeleted", 
+                                    "zipCode", "data_crtr_pnttm", "clct_pnttm", "clct_log_sn", "page_no", "BmsLnkIniOrgSrvDeptClientDetailList2VO_etc", 
+                                    "BmsLnkIniOrgSrvDeptClientDetailList2VO_isDefault", "BmsLnkIniOrgSrvDeptClientDetailList2VO_isUse", 
+                                    "BmsLnkIniOrgSrvDeptClientDetailList2VO_manageGubun"
+                                ]
 
-                                    # 원천 데이터 저장
-                                    if link_file_crt_yn.lower() == "y":
-                                        CallUrlUtil.create_source_file(json_data, source_file_name, full_file_path, mode)
+                                # 필터링된 헤더 목록
+                                required_headers = [
+                                    "actGubun", "orgId", "orgName", "parentOrgId", "orgType", "orgOrder", 
+                                    "topOrgId", "description", "descriptionId", "whenCreated", "whenDeleted", 
+                                    "isDeleted", "chiefId", "chiefLoginId", "chiefPosition", "homePage", 
+                                    "zipCode", "address", "addressDetail", "telephone", "fax", "subOrgType", 
+                                    "displayName", "orgKind", "orgKindName", "docDeptId", "docDeptName", 
+                                    "relayType", "docSystemInfo", "totCnt", "actResultCode", "actResultName", 
+                                    "manageGubun", "etc", "isUse", "isDefault"
+                                ]
 
-                                    result = CallUrlUtil.read_json(json_data, pvdr_site_cd, pvdr_inst_cd, dtst_cd, tn_data_bsc_info.data_se_col_one)
-                                    result_json = result['result_json_array']
-                                    result_size = len(result_json)
+                                filtered_headers = [header for header in original_headers if header in required_headers]
+                                print("filtered_headers:::::",filtered_headers)
+                                
+
+                                extracted_data = []
+        
+                                for item in result_json:
+                                    filtered_item = {}
+                                    
+                                    # 각 키-값 쌍을 순회하면서 처리
+                                    for key, value in item.items():
+                                        # 접두어 제거: 마지막 '}' 이후의 텍스트를 키로 사용
+                                        clean_key = key.split('}')[-1] if '}' in key else key
+                                        
+                                        # 원하는 필드만 추출
+                                        if clean_key in filtered_headers:
+                                            filtered_item[clean_key] = value
+                                    
+                                    # 추출한 데이터 리스트에 추가
+                                    extracted_data.append(filtered_item)
+                                print("!!!!extracted_data :::::::::",extracted_data)
+                            
+                        if dtst_cd == 'data1033':  # 전체사용자목록 getAllUserInfoListView
+                            # DOCUMENT 또는 데이터 확인
+                            dct_list_element = body.find(".//ns2:orgUserInfoVo", namespaces=namespaces)
+                            document_string = ET.tostring(dct_list_element, encoding='utf-8', method='xml').decode()
+                            
+                            if res_code == "INI0000":
+                                json_data = XMLtoDict().parse(document_string)
+
+                                # 원천 데이터 저장
+                                if link_file_crt_yn.lower() == "y":
+                                    CallUrlUtil.create_source_file(json_data, source_file_name, full_file_path, mode)
+
+                                result = CallUrlUtil.read_json(json_data, pvdr_site_cd, pvdr_inst_cd, dtst_cd, tn_data_bsc_info.data_se_col_one)
+                                result_json = result['result_json_array']
+                                result_size = len(result_json)
+                                print("result_json :::::::::",result_json)
+                                
+                                # 원본 헤더 (예시)
+                                
+
+                                # 필터링된 헤더 목록
+                                required_fields = [
+                                    "userId", "loginId", "userName", "deptId", "deptName", "residentNo",
+                                    "position", "positionName", "password", "userOrder", "imGubun", "imGubunName",
+                                    "isDeleted", "isConcurrent", "positionDetail", "approvalPassword", "email",
+                                    "duty", "homePage", "officePhone", "officeFax", "officeZip", "officeAddr", "officeAddrDetail",
+                                    "mobilePhone", "homePhone", "homeZip", "homeAddr", "homeAddrDetail", "grade", "gradeName",
+                                    "gradeShortName", "jobType", "jobTypeName", "jobGubun", "jobGubunName", "classCode", "className",
+                                    "inId", "inDt", "upId", "upDt", "totCnt", "actResultCode", "actResultName", "fileId",
+                                    "filename", "signfileid", "signfilename"
+                                ]
+
+                                extracted_data = []
+        
+                                for item in result_json:
+                                    filtered_item = {}
+                                    
+                                    # 각 키-값 쌍을 순회하면서 처리
+                                    for key, value in item.items():
+                                        # 접두어 제거: 마지막 '}' 이후의 텍스트를 키로 사용
+                                        clean_key = key.split('}')[-1] if '}' in key else key
+                                        
+                                        # 원하는 필드만 추출
+                                        if clean_key in required_fields:
+                                            filtered_item[clean_key] = value
+                                    
+                                    # 추출한 데이터 리스트에 추가
+                                    extracted_data.append(filtered_item)
+                                print("!!!!extracted_data :::::::::",extracted_data)
 
                             # 데이터 존재 시
                             if result_size != 0:
@@ -367,10 +401,7 @@ def api_to_csv_fail_retry_onnara():
                                     mode = "w"
 
                                 # CSV 파일 생성
-                                if dtst_cd == 'data1033': # 전체사용자목록 getAllUserInfoListView
-                                    CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, result_json, header, mode, page_no)
-                                else:
-                                    CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, extracted_data, header, mode, page_no)
+                                CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, extracted_data, header, mode, page_no)
 
 
                             row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)  # 행 개수 확인

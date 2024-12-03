@@ -50,13 +50,13 @@ class CommonUtil:
                     else:
                         file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_") + "_" + data_crtr_pnttm
                     
-                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB 로그 존재 확인
-                    if dtst_cd in {"data852", "data4", "data799", "data31", 'data855', "data793", "data795", "data792", "data794"}:
+                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB, 강우량 로그 존재 확인
+                    if dtst_cd in {"data852", "data4", "data799", "data31", 'data855', "data793", "data795", "data792", "data794","data1052"}:
                         th_data_clct_mastr_log = CommonUtil.get_exist_log(conn, data_crtr_pnttm, dtst_cd)
 
-                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB의 경우 로그 존재하지 않을 때
-                    if (dtst_cd in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794"} and th_data_clct_mastr_log == None) \
-                        or dtst_cd not in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794"}:
+                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB, 강우량 의 경우 로그 존재하지 않을 때
+                    if (dtst_cd in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794","data1052"} and th_data_clct_mastr_log == None) \
+                        or dtst_cd not in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794","data1052"}:
                         # th_data_clct_mastr_log 테이블에 insert
                         th_data_clct_mastr_log = ThDataClctMastrLog()
                         th_data_clct_mastr_log.dtst_cd = dtst_cd
@@ -74,14 +74,14 @@ class CommonUtil:
                         conn.add(th_data_clct_mastr_log)
                         conn.get(ThDataClctMastrLog, th_data_clct_mastr_log.clct_log_sn)
                 
-                    # 새올행정주민요약DB - 내부파일전송단계 성공, 하둡파일전송단계, 데이터웨어하우스적재단계 로그 여부 조회
-                    if dtst_cd in {"data792","data793","data794", "data795"} and ((th_data_clct_mastr_log.step_se_cd == CONST.STEP_FILE_INSD_SEND and th_data_clct_mastr_log.stts_cd == CONST.STTS_COMP)\
+                    # 새올행정주민요약DB, 강우량 - 내부파일전송단계 성공, 하둡파일전송단계, 데이터웨어하우스적재단계 로그 여부 조회
+                    if dtst_cd in {"data792","data793","data794", "data795","data1052"} and ((th_data_clct_mastr_log.step_se_cd == CONST.STEP_FILE_INSD_SEND and th_data_clct_mastr_log.stts_cd == CONST.STTS_COMP)\
                         or th_data_clct_mastr_log.step_se_cd == CONST.STEP_FILE_STRGE_SEND or th_data_clct_mastr_log.step_se_cd == CONST.STEP_DW_LDADNG):
                         logging.info(f"insert_collect_data_info ::: 성공 로그 존재, 재수집 실행 종료")
                         continue
 
-                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB - th_data_clct_stts_hstry_log 입력위한 th_data_clct_mastr_log 설정
-                    if dtst_cd in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794"}:
+                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB, 강우량 - th_data_clct_stts_hstry_log 입력위한 th_data_clct_mastr_log 설정
+                    if dtst_cd in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794","data1052"}:
                         th_data_clct_mastr_log.step_se_cd = CONST.STEP_CNTN
                         th_data_clct_mastr_log.stts_cd = CONST.STTS_WORK
                         th_data_clct_mastr_log.stts_msg = CONST.MSG_CNTN_WORK

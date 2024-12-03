@@ -141,7 +141,6 @@ def api_to_csv_onnara():
             try:
                  # 총 데이터 건수 조회 url 호출
                 total_count = CallUrlUtil.get_total_count(tn_data_bsc_info.data_se_col_two,tn_data_bsc_info.data_se_col_one,pvdr_data_se_vl_three,authKey,dtst_cd)
-                # total_count = 190
                 logging.info(f"총 데이터 건수: {total_count}, 총 페이지 수: {total_page}")
 
                 # 파라미터 길이만큼 반복 호출
@@ -226,6 +225,40 @@ def api_to_csv_onnara():
                             result = CallUrlUtil.read_json(json_data, pvdr_site_cd, pvdr_inst_cd, dtst_cd, tn_data_bsc_info.data_se_col_one)
                             result_json = result['result_json_array']
                             result_size = len(result_json)
+                            print("result_json :::::::::",result_json)
+                            
+                            # 원본 헤더 (예시)
+                            
+
+                            # 필터링된 헤더 목록
+                            required_fields = [
+                                "userId", "loginId", "userName", "deptId", "deptName", "residentNo",
+                                "position", "positionName", "password", "userOrder", "imGubun", "imGubunName",
+                                "isDeleted", "isConcurrent", "positionDetail", "approvalPassword", "email",
+                                "duty", "homePage", "officePhone", "officeFax", "officeZip", "officeAddr", "officeAddrDetail",
+                                "mobilePhone", "homePhone", "homeZip", "homeAddr", "homeAddrDetail", "grade", "gradeName",
+                                "gradeShortName", "jobType", "jobTypeName", "jobGubun", "jobGubunName", "classCode", "className",
+                                "inId", "inDt", "upId", "upDt", "totCnt", "actResultCode", "actResultName", "fileId",
+                                "filename", "signfileid", "signfilename"
+                            ]
+
+                            extracted_data = []
+    
+                            for item in result_json:
+                                filtered_item = {}
+                                
+                                # 각 키-값 쌍을 순회하면서 처리
+                                for key, value in item.items():
+                                    # 접두어 제거: 마지막 '}' 이후의 텍스트를 키로 사용
+                                    clean_key = key.split('}')[-1] if '}' in key else key
+                                    
+                                    # 원하는 필드만 추출
+                                    if clean_key in required_fields:
+                                        filtered_item[clean_key] = value
+                                
+                                # 추출한 데이터 리스트에 추가
+                                extracted_data.append(filtered_item)
+                            print("!!!!extracted_data :::::::::",extracted_data)
 
                             # 데이터 존재 시
                             if result_size != 0:
@@ -241,7 +274,7 @@ def api_to_csv_onnara():
                                     mode = "w"
 
                                 # CSV 파일 생성
-                                CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, result_json, header, mode, page_no)
+                                CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, extracted_data, header, mode, page_no)
 
 
                             row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)  # 행 개수 확인

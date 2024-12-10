@@ -140,7 +140,7 @@ class CallUrlUtil:
                 return ["row"]
             if dtst_cd in {"data919","data920","data922","data6"}:
                 return ["data"]
-            if pvdr_inst_cd in {"pi00008", "pi00012", "pi00019"} or dtst_cd in {"data852", "data50", "data650", "data787", "data788", "data853"}:
+            if pvdr_inst_cd in {"pi00008", "pi00012", "pi00019"} or dtst_cd in {"data852", "data50", "data650", "data787", "data788", "data853", "data1059"}:
                 return ["item"]
             if dtst_cd == "data6" or pvdr_site_cd == "ps00029":
                 return ["data"]
@@ -171,7 +171,7 @@ class CallUrlUtil:
             if dtst_cd in {"data919","data920","data922"}: # 공공데이터 포털 (목록/파일/오픈API)
                 return "matchCount"
             if pvdr_inst_cd in {"pi00004", "pi00012", "pi00022"} or (pvdr_inst_cd == "pi00008" and dtst_cd == "data49") or (pvdr_inst_cd == "pi00009" and dtst_cd != "data6") \
-                or dtst_cd in {"data852", "data22", "data26", "data51", "data4", "data650", "data678", "data704", "data706", "data787", "data788", "data853"}:
+                or dtst_cd in {"data852", "data22", "data26", "data51", "data4", "data650", "data678", "data704", "data706", "data787", "data788", "data853", "data1059"}:
                 return "totalCount"
             if dtst_cd in {"data777"}: # 정보나루_정보공개_도서관조회
                 return "numFound"
@@ -343,6 +343,8 @@ class CallUrlUtil:
             param_list = params_dict.get("param_list")
         
         if dtst_cd in {"data919","data920","data922"}:
+            return f"{page_no}"
+        if dtst_cd in {"data1059"}:  # 사회복지시설표준데이터
             return f"{page_no}"
         if dtst_cd == "data921":
             return f"{param_list[repeat_num - 1]}&pageNo={page_no}"
@@ -553,8 +555,12 @@ class CallUrlUtil:
         """
         # 값이 있는 경우에만 비식별 처리를 진행
         if value:
-            # 문자열의 첫 번째 문자제외 전부 '*'로 대체
-            return value[0] + re.sub(r'\S', '*', value[1:])
+            if len(value) == 1:
+                # 문자열 길이가 1인 경우 전체를 '*'로 대체
+                return '*'
+            else:
+                # 첫 번째 문자는 유지하고 나머지는 '*'로 대체
+                return value[0] + re.sub(r'\S', '*', value[1:])
         else:
             return value
         
@@ -663,6 +669,8 @@ class CallUrlUtil:
             namespaces = {'soapenv': 'http://schemas.xmlsoap.org/soap/envelope/',
                   'n1': 'http://hamoni.mogaha.go.kr/bms',
                   'ns2': 'java:gov.bms.lnk.ini.vo'}
+            
+            # logging.info(f" call_url_util get_total_count dtst_cd:\n{dtst_cd}")
 
             if dtst_cd == 'data1022':
                 total_count_element = root.find('.//ns2:totalCnt', namespaces)

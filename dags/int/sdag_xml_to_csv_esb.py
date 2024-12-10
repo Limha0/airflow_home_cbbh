@@ -272,6 +272,12 @@ def xml_to_csv_esb():
 
                     # 누락된 컬럼이 모두 추가된 new_dict를 new_result_json에 포함
                     new_result_json.append(new_dict)
+                
+                # # dutyId 로깅
+                # if new_result_json:
+                #     for item in new_result_json:
+                #         if 'dutyId' in item:
+                #             logging.info(f"dutyId: {item['dutyId']}")    
 
                 result_size = len(new_result_json)
                 logging.info(f"최종 JSON 데이터 크기 (CSV 변환용): {result_size}")
@@ -285,8 +291,21 @@ def xml_to_csv_esb():
                 # 신문고민원_처리 데이터 비식별 처리
                 if dtst_se_val == 'Process':
                     for item in new_result_json:
+                        # logging.info(f"dutyId: {item['dutyId']}, dutyName: {item['dutyName']}") 
                         item['dutyId'] = CallUrlUtil.anonymize(item.get('dutyId', ''))
                         item['dutyName'] = CallUrlUtil.anonymize(item.get('dutyName', ''))
+                        # 비식별화된 데이터 로깅
+                        # logging.info(f"비식별화된 dutyId: {item['dutyId']}, dutyName: {item['dutyName']}")
+
+                # 신문고민원_신청 데이터 비식별 처리 (cellPhone	linePhone	birthDate	sex)
+                if dtst_se_val == 'Petition': 
+                    for item in new_result_json:
+                        logging.info(f"Petitioner_cellPhone: {item['Petitioner_cellPhone']}") 
+                        item['Petitioner_cellPhone'] = CallUrlUtil.anonymize(item.get('Petitioner_cellPhone', ''))
+                        item['Petitioner_linePhone'] = CallUrlUtil.anonymize(item.get('Petitioner_linePhone', ''))
+                        item['Petitioner_birthDate'] = CallUrlUtil.anonymize(item.get('Petitioner_birthDate', ''))
+                        item['Petitioner_sex'] = CallUrlUtil.anonymize(item.get('Petitioner_sex', ''))
+                        logging.info(f"비식별화된 Petitioner_cellPhone: {item['Petitioner_cellPhone']}, Petitioner_birthDate: {item['Petitioner_birthDate']}")
 
                 # 데이터 존재 시
                 if result_size != 0:

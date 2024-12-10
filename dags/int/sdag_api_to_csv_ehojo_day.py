@@ -175,13 +175,16 @@ def api_to_csv_ehojo():
                         # url 설정
                         headers = headers = {
                                 "API_KEY": api_key_ehojo
-                                ,"Content-Type": "application/jsoncharset=utf-8"
+                                ,"Content-Type": "application/json;charset=utf-8"
                                 }
                         data = EhojoUtil.set_url(dtst_cd, params_dict, repeat_num, pagd_no, interface_id, encrypt_key_ehojo, th_data_clct_mastr_log.data_crtr_pnttm)
 
                         # url 호출
                         response = requests.post(base_url, headers=headers, data=data)
                         response_code = response.status_code
+                        logging.info(f"ehojo_day response___base_url::: {base_url}")
+                        logging.info(f"ehojo_day response___headers::: {headers}")
+                        logging.info(f"ehojo_day response___data::: {data}")
 
                         # url 호출 시 메세지 설정
                         header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, pagd_no, base_url, total_page, full_file_name, header, mode)

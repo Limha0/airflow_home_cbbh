@@ -17,7 +17,7 @@ from airflow.providers.sftp.operators.sftp import SFTPHook
 
 @dag(
     dag_id="sdag_csv_to_dw_hadoop",
-    schedule="0,15,30,45 3 * * *",
+    schedule="10,30,50 3,5,6 * * *",
     start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
@@ -115,7 +115,9 @@ def csv_to_dw_hadoop():
                 file_path = tn_clct_file_info.insd_flpth
             elif dtst_cd == 'data891':  # 노선별OD데이터 예외
                 file_path = pvdr_site_nm + log_full_file_path[-9:]
+            print("file_path!!!!!",file_path)
             full_file_path = final_file_path + file_path
+            print("full_file_path!!!!!",full_file_path)
             try:
                 FileUtil.decrypt_file(full_file_path, pvdr_site_nm, encrypt_key, pvdr_sou_data_pvsn_stle)
                 FileUtil.unzip_file(full_file_path, pvdr_site_nm, pvdr_sou_data_pvsn_stle)
@@ -307,13 +309,16 @@ def csv_to_dw_hadoop():
                 else:
                     file_path = tn_data_bsc_info.pvdr_site_nm + log_full_file_path[-9:]
 
-                #before_file_path = kwargs['var']['value'].root_final_file_path + file_path  # local test 파일 경로
+                #before_file_path = kwargs['var'][value'].root_final_file_path + file_path  # local test 파일 경로
                 before_file_path = kwargs['var']['value'].final_file_path + file_path
+                hadoop_full_path = kwargs['var']['value'].hadoop_base_path + file_path  # 최종 Hadoop 경로
+                link_file_extn = tn_data_bsc_info.link_file_extn #확장자
+                pvdr_sou_data_pvsn_stle = tn_data_bsc_info.pvdr_sou_data_pvsn_stle # 제공형태
+                
                 print("@@@@@@@before_file_path : "+ before_file_path)
                 file_name = tn_clct_file_info.insd_file_nm + '.' + tn_clct_file_info.insd_file_extn  # 파일 이름
 
-                # Hadoop 전송 경로 설정 (Hadoop 서버의 디렉토리)
-                hadoop_full_path = kwargs['var']['value'].hadoop_base_path + file_path  # 최종 Hadoop 경로
+                
                 print("@@@@@@@hadoop_full_path : "+ hadoop_full_path)
 
                 # HDFS 클라이언트 설정
@@ -391,13 +396,15 @@ def csv_to_dw_hadoop():
             AND dtst_cd = '{dtst_cd}'
             ORDER BY dtst_cd
         '''
-        if dtst_cd == "data675":  # 신문고
+        # if dtst_cd == "data675":  # 신문고
+        if dtst_cd.strip().lower() == "data675": 
             select_bsc_info_stmt = f'''
                 SELECT *, (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND pvdr_site_cd = dtl_cd) AS pvdr_site_nm
                 FROM tn_data_bsc_info 
                 WHERE 1=1
                 AND dtst_cd = 'data675'
                 AND dtst_nm = '{clct_data_nm}'
+                AND dtst_nm != '국민신문고_신문고민원'
                 ORDER BY dtst_cd
             '''
         if dtst_cd == "data648":  # 지방행정인허가 (20240909)
@@ -481,9 +488,9 @@ def csv_to_dw_hadoop():
             '''
 
         if where_se == "final":  # 최종경로 파일 존재 여부 확인 대상 조회
-            where_stmt = f"""AND ((link_ntwk_otsd_insd_se = '외부' AND b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_WORK_UNZIP}') OR
+            where_stmt = f"""AND ((a.link_ntwk_otsd_insd_se = '외부' AND b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_WORK_UNZIP}') OR
                             (link_ntwk_otsd_insd_se = '내부' AND (LOWER(b.step_se_cd) = '{CONST.STEP_FILE_INSD_SEND}' AND LOWER(b.stts_cd) = '{CONST.STTS_COMP}')) OR b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_ERROR_CHECK}')"""
-        if where_se == "send":  # 스토리지 전송 대상 조회
+        if where_se == "send":  # 하둡 전송 대상 조회
             where_stmt = f"""AND (b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_WORK_CHECK}' OR b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_ERROR_MOVE}')
                 AND b.clct_log_sn = c.clct_log_sn """
             from_stmt = f", tn_clct_file_info c"
@@ -500,24 +507,64 @@ def csv_to_dw_hadoop():
                     AND link_ntwk_otsd_insd_se = '외부'
                     AND (b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_WORK_CHECK}' OR b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_ERROR_MOVE}')
                 """
-        
         select_stmt = f'''
-                        SELECT
-                            {distinct_stmt} b.*
-                        FROM tn_data_bsc_info a, th_data_clct_mastr_log b {from_stmt}
-                        WHERE 1=1 
-                            AND a.dtst_cd = b.dtst_cd
-                            AND LOWER(a.use_yn) = 'y'
-                            AND LOWER(a.link_clct_mthd_dtl_cd) IN ('on_file','open_api','esb','rdb','sftp')
-                            AND LOWER(a.link_file_extn) IN ('csv', 'xls', 'zip')
-                            AND LOWER(a.pvdr_inst_cd) != 'pi00011'
-        and a.dtst_cd != 'data648'                          
-        and b.clct_ymd != '20250120'
-                            {where_stmt}
-                            {link_ntwk_extrl_inner_se_stmt}
-                            {update_log_stmt}
-                            {union_stmt}
+                            SELECT
+                                {distinct_stmt} b.*
+                            FROM tn_data_bsc_info a, th_data_clct_mastr_log b {from_stmt}
+                            WHERE 1=1 
+                                AND a.dtst_cd = b.dtst_cd
+                                and a.dtst_dtl_cd  = b.dtst_dtl_cd 
+                                AND LOWER(a.use_yn) = 'y'
+                                AND LOWER(a.link_clct_mthd_dtl_cd) in ('on_file', 'open_api', 'esb', 'rdb', 'sftp','tcp')
+                                AND LOWER(a.link_file_extn) IN ('csv', 'xls', 'zip')
+                                AND LOWER(a.pvdr_inst_cd) != 'pi00011'
+                                {where_stmt}
+                                {link_ntwk_extrl_inner_se_stmt}
+                                {update_log_stmt}
+                                {union_stmt}
                         '''
+
+        # select_stmt = f'''
+        #                 select 
+        #                     ( ARRAY_AGG(clct_log_sn order by clct_log_sn desc) )[1] as clct_log_sn
+        #                 , dtst_cd
+        #                 , ( ARRAY_AGG(dtst_dtl_cd order by clct_log_sn desc) )[1] as dtst_dtl_cd
+        #                 , ( ARRAY_AGG(clct_ymd order by clct_log_sn desc) )[1] as clct_ymd
+        #                 , ( ARRAY_AGG(clct_data_nm order by clct_log_sn desc) )[1] as clct_data_nm
+        #                 , data_crtr_pnttm
+        #                 , ( ARRAY_AGG(reclect_flfmt_nmtm order by clct_log_sn desc) )[1] as reclect_flfmt_nmtm
+        #                 , ( ARRAY_AGG(step_se_cd order by clct_log_sn desc) )[1] as step_se_cd
+        #                 , ( ARRAY_AGG(stts_cd order by clct_log_sn desc) )[1] as stts_cd
+        #                 , ( ARRAY_AGG(stts_dt order by clct_log_sn desc) )[1] as stts_dt
+        #                 , ( ARRAY_AGG(stts_msg order by clct_log_sn desc) )[1] as stts_msg
+        #                 , ( ARRAY_AGG(crt_dt order by clct_log_sn desc) )[1] as crt_dt
+        #                 , ( ARRAY_AGG(dw_rcrd_cnt order by clct_log_sn desc) )[1] as dw_rcrd_cnt
+        #                 , ( ARRAY_AGG(creatr_id order by clct_log_sn desc) )[1] as creatr_id
+        #                 , ( ARRAY_AGG(creatr_nm order by clct_log_sn desc) )[1] as creatr_nm
+        #                 , ( ARRAY_AGG(creatr_dept_nm order by clct_log_sn desc) )[1] as creatr_dept_nm
+        #                 , ( ARRAY_AGG(estn_field_one order by clct_log_sn desc) )[1] as estn_field_one
+        #                 , ( ARRAY_AGG(estn_field_two order by clct_log_sn desc) )[1] as estn_field_two
+        #                 , ( ARRAY_AGG(estn_field_three order by clct_log_sn desc) )[1] as estn_field_three
+        #                 , ( ARRAY_AGG(link_file_sprtr order by clct_log_sn desc) )[1] as link_file_sprtr
+        #                 from (
+        #                         SELECT
+        #                             {distinct_stmt} b.*
+        #                         FROM tn_data_bsc_info a, th_data_clct_mastr_log b {from_stmt}
+        #                         WHERE 1=1 
+        #                             AND a.dtst_cd = b.dtst_cd
+        #                             and a.dtst_dtl_cd  = b.dtst_dtl_cd 
+        #                             AND LOWER(a.use_yn) = 'y'
+        #                             AND LOWER(a.link_clct_mthd_dtl_cd) in ('on_file', 'open_api', 'esb', 'rdb', 'sftp','tcp')
+        #                             AND LOWER(a.link_file_extn) IN ('csv', 'xls', 'zip')
+        #                             AND LOWER(a.pvdr_inst_cd) != 'pi00011'
+        #                             {where_stmt}
+        #                             {link_ntwk_extrl_inner_se_stmt}
+        #                             {update_log_stmt}
+        #                             {union_stmt}
+        #                     ) t1	
+        #                 group by dtst_cd, data_crtr_pnttm
+                                    
+        #                 '''
 
         select_stmt = ' '.join(select_stmt.split())
         logging.info(f"select_stmt::: {select_stmt}")
@@ -538,7 +585,7 @@ def csv_to_dw_hadoop():
                                     AND a.dtst_cd = b.dtst_cd
                                     AND LOWER(a.use_yn) = 'y'
                                     AND LOWER(a.dw_load_yn) = 'y'
-                                    AND LOWER(a.link_clct_mthd_dtl_cd) IN ('on_file','open_api','esb','rdb','sftp')
+                                    AND LOWER(a.link_clct_mthd_dtl_cd) in ('on_file', 'open_api', 'esb', 'rdb', 'sftp','tcp')
                                     AND LOWER(a.link_file_extn) IN ('csv', 'xls')
                                     AND LOWER(b.step_se_cd) NOT IN ('{CONST.STEP_CLCT}','{CONST.STEP_CNTN}','{CONST.STEP_FILE_INSD_SEND}')
                                     AND ((LOWER(b.step_se_cd) = '{CONST.STEP_FILE_STRGE_SEND}' AND LOWER(b.stts_cd) = '{CONST.STTS_COMP}') OR (LOWER(b.step_se_cd) = '{CONST.STEP_DW_LDADNG}' AND LOWER(b.stts_cd) != '{CONST.STTS_COMP}'))
@@ -676,7 +723,8 @@ def csv_to_dw_hadoop():
                     dw_column_dict = {}
                     for dict_row in conn.execute(get_data_type_stmt).all():
                         dw_column_dict[dict_row[1]] = dict_row[2]
-                
+
+                    print("")                
                     # 파일 컬럼명
                     file_column = pd.read_csv(full_file_name, sep= th_data_clct_mastr_log.link_file_sprtr, low_memory = False).columns.str.lower()  # 소문자로 변경
                     lists_column_info.append({

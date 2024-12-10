@@ -54,7 +54,7 @@ def api_to_download_kosis():
                                     AND LOWER(link_clct_mthd_dtl_cd) = 'on_file'
                                     AND LOWER(link_clct_cycle_cd) = 'month'
                                     AND link_ntwk_otsd_insd_se = '외부'
-                                    AND LOWER(pvdr_site_cd) = 'ps00010' -- 국가통계포털 (38종)
+                                    AND LOWER(pvdr_site_cd) = 'ps00010' -- 국가통계포털 (40종)
                                 ORDER BY sn
                                 '''
         

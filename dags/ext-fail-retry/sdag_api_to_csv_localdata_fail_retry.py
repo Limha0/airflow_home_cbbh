@@ -52,6 +52,7 @@ def api_to_csv_localdata():
                                 FROM tn_data_bsc_info a, th_data_clct_mastr_log b
                                 WHERE 1=1
                                     AND a.dtst_cd = b.dtst_cd
+                                    and a.dtst_dtl_cd  = b.dtst_dtl_cd 
                                     AND LOWER(clct_yn) = 'y'
                                     AND LOWER(link_yn) = 'y'
                                     AND LOWER(link_clct_mthd_dtl_cd) = 'on_file'
@@ -86,6 +87,7 @@ def api_to_csv_localdata():
                                 FROM tn_data_bsc_info a, th_data_clct_mastr_log b
                                 WHERE 1=1
                                     AND a.dtst_cd = b.dtst_cd
+                                    and a.dtst_dtl_cd  = b.dtst_dtl_cd 
                                     AND LOWER(clct_yn) = 'y'
                                     AND LOWER(link_yn) = 'y'
                                     AND LOWER(link_clct_mthd_dtl_cd) = 'on_file'

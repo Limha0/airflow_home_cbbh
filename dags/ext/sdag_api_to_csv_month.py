@@ -12,6 +12,7 @@ from dto.th_data_clct_mastr_log import ThDataClctMastrLog
 from dto.tn_clct_file_info import TnClctFileInfo
 from dto.tc_com_dtl_cd import TcCmmnDtlCd as CONST
 from airflow.exceptions import AirflowSkipException
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 @dag(
     dag_id="sdag_api_to_csv_month",
@@ -58,7 +59,7 @@ def api_to_csv_month():
                                 AND LOWER(dtst_cd) not in ('data50','data778','data779','data781','data782','data784') -- 후 수집 제외
                                 AND NOT LOWER(dtst_cd) = 'data33' -- 대기오염_국가측정망_월평균_측정정보_조회 제외
                                 AND NOT LOWER(dtst_cd) in ('data919','data920','data921','data922','data1008','data1009','data1010','data1011','data1012','data1013','data1014') -- 경기도 용인, 공공데이터포털 제외
-                            ORDER BY sn;
+                            ORDER BY sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
@@ -223,12 +224,38 @@ def api_to_csv_month():
                                     dw_column_dict.append(dict_row[0])
 
                             for dict_value in result_json:
-                                dict_value.update(add_column_dict)
-                                lowercase_keys = {key.lower(): value for key, value in dict_value.items()}
-                                for missing_column in dw_column_dict:
-                                    if missing_column not in lowercase_keys.keys():
-                                        add_column_dict.update({missing_column: None})
-                                dict_value.update(add_column_dict)
+                                if dtst_cd == 'data1059':
+                                    # data1059용 대소문자 구분 없는 매핑 로직
+                                    temp_dict = dict_value.copy()
+                                    temp_dict.update(add_column_dict)
+                                    
+                                    new_dict = {}
+                                    for dw_col in dw_column_dict:
+                                        matched = False
+                                        for key, value in temp_dict.items():
+                                            if key.lower() == dw_col.lower():
+                                                new_dict[dw_col] = value
+                                                matched = True
+                                                break
+                                        if not matched:
+                                            new_dict[dw_col] = None
+                                    
+                                    dict_value.clear()
+                                    dict_value.update(new_dict)
+                                else:
+                                    # 기존 로직 유지
+                                    dict_value.update(add_column_dict)
+                                    lowercase_keys = {key.lower(): value for key, value in dict_value.items()}
+                                    for missing_column in dw_column_dict:
+                                        if missing_column not in lowercase_keys.keys():
+                                            add_column_dict.update({missing_column: None})
+                                    dict_value.update(add_column_dict)
+                                # dict_value.update(add_column_dict)
+                                # lowercase_keys = {key.lower(): value for key, value in dict_value.items()}
+                                # for missing_column in dw_column_dict:
+                                #     if missing_column not in lowercase_keys.keys():
+                                #         add_column_dict.update({missing_column: None})
+                                # dict_value.update(add_column_dict)
                             
                              # 데이터 존재 시
                             if result_size != 0:
@@ -372,6 +399,7 @@ def api_to_csv_month():
 
             local_filepath = full_file_path + encrypt_file
             remote_filepath = kwargs['var']['value'].final_file_path + file_path
+            logging.info(f"remote_file_path::: {remote_filepath}")
             
             tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
             log_full_file_path = collect_data_list['log_full_file_path']
@@ -404,7 +432,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2024,5,1,15,00),
+        execution_date=datetime(2024,9,30,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

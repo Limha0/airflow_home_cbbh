@@ -50,13 +50,13 @@ class CommonUtil:
                     else:
                         file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_") + "_" + data_crtr_pnttm
                     
-                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB, 강우량 로그 존재 확인
-                    if dtst_cd in {"data852", "data4", "data799", "data31", 'data855', "data793", "data795", "data792", "data794","data1052"}:
+                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB 로그 존재 확인
+                    if dtst_cd in {"data852", "data4", "data799", "data31", 'data855', "data793", "data795", "data792", "data794"}:
                         th_data_clct_mastr_log = CommonUtil.get_exist_log(conn, data_crtr_pnttm, dtst_cd)
 
-                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB, 강우량 의 경우 로그 존재하지 않을 때
-                    if (dtst_cd in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794","data1052"} and th_data_clct_mastr_log == None) \
-                        or dtst_cd not in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794","data1052"}:
+                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB의 경우 로그 존재하지 않을 때
+                    if (dtst_cd in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794"} and th_data_clct_mastr_log == None) \
+                        or dtst_cd not in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794"}:
                         # th_data_clct_mastr_log 테이블에 insert
                         th_data_clct_mastr_log = ThDataClctMastrLog()
                         th_data_clct_mastr_log.dtst_cd = dtst_cd
@@ -74,14 +74,14 @@ class CommonUtil:
                         conn.add(th_data_clct_mastr_log)
                         conn.get(ThDataClctMastrLog, th_data_clct_mastr_log.clct_log_sn)
                 
-                    # 새올행정주민요약DB, 강우량 - 내부파일전송단계 성공, 하둡파일전송단계, 데이터웨어하우스적재단계 로그 여부 조회
-                    if dtst_cd in {"data792","data793","data794", "data795","data1052"} and ((th_data_clct_mastr_log.step_se_cd == CONST.STEP_FILE_INSD_SEND and th_data_clct_mastr_log.stts_cd == CONST.STTS_COMP)\
+                    # 새올행정주민요약DB - 내부파일전송단계 성공, 하둡파일전송단계, 데이터웨어하우스적재단계 로그 여부 조회
+                    if dtst_cd in {"data792","data793","data794", "data795"} and ((th_data_clct_mastr_log.step_se_cd == CONST.STEP_FILE_INSD_SEND and th_data_clct_mastr_log.stts_cd == CONST.STTS_COMP)\
                         or th_data_clct_mastr_log.step_se_cd == CONST.STEP_FILE_STRGE_SEND or th_data_clct_mastr_log.step_se_cd == CONST.STEP_DW_LDADNG):
                         logging.info(f"insert_collect_data_info ::: 성공 로그 존재, 재수집 실행 종료")
                         continue
 
-                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB, 강우량 - th_data_clct_stts_hstry_log 입력위한 th_data_clct_mastr_log 설정
-                    if dtst_cd in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794","data1052"}:
+                    # 기상청_단기예보, 5분_소통정보, 센서측정정보, 대기오염정보_측정소별_실시간_측정정보_조회, 실시간_측정정보_조회, 새올행정주민요약DB - th_data_clct_stts_hstry_log 입력위한 th_data_clct_mastr_log 설정
+                    if dtst_cd in {"data852", 'data4', 'data799', 'data31', 'data855', "data793", "data795", "data792", "data794"}:
                         th_data_clct_mastr_log.step_se_cd = CONST.STEP_CNTN
                         th_data_clct_mastr_log.stts_cd = CONST.STTS_WORK
                         th_data_clct_mastr_log.stts_msg = CONST.MSG_CNTN_WORK
@@ -333,18 +333,14 @@ class CommonUtil:
                                     '''
                 if dtst_cd == "data675":  # 신문고
                     select_bsc_info_stmt = f'''
-                                            SELECT sn, a.dtst_cd, b.dtst_nm, a.dtst_dtl_cd, a.pvdr_site_cd, pvdr_inst_cd, pvdr_dept_nm, pvdr_pvsn_mthd_cd, pvdr_data_se_vl_one, pvdr_data_se_vl_two
-                                                , pvdr_updt_cycle_cd, pvdr_sou_data_pvsn_stle, link_ntwk_otsd_insd_se, link_pvdr_url, link_data_clct_url, link_db_id, link_tbl_phys_nm, link_dtst_se_cd, link_file_crt_yn
-                                                , link_file_merg_yn, link_file_extn, a.link_file_sprtr, link_yn, link_se_cd, clct_yn, link_clct_mthd, link_clct_mthd_dtl_cd, link_clct_cycle_cd, link_clct_job_id
-                                                , b.pbadms_fld_cd, encpt_yn, a.dw_load_yn, dw_load_mthd_cd, b.dw_tbl_phys_nm, addr_refine_yn, dtwrh_utlz_yn, data_rls_se_cd
-                                                , portal_dwnld_pvsn_yn, a.use_yn, crt_dt, rmrk, rmrk_two, rmrk_three, data_se_col_one, data_se_col_two, rfrnc_phys_tbl_nm, rfrnc_col_nm, crtr_del_col_nm
-                                                , (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND a.pvdr_site_cd = dtl_cd) AS pvdr_site_nm
-                                            FROM tn_data_bsc_info a, tc_pbadms_fld_mapng b
+                                            SELECT *, (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND pvdr_site_cd = dtl_cd) AS pvdr_site_nm
+                                            FROM tn_data_bsc_info a
                                             WHERE 1=1
-                                            AND a.dtst_cd = b.dtst_cd
                                             AND a.dtst_cd = 'data675'
-                                            AND b.dtst_nm = '{th_data_clct_mastr_log.clct_data_nm}'
+                                            AND a.dtst_nm = '{th_data_clct_mastr_log.clct_data_nm}'
+                                            AND dtst_nm != '국민신문고_신문고민원'
                                             ORDER BY a.dtst_cd
+
                                             '''
                 dict_row_info = conn.execute(select_bsc_info_stmt).first()
                 tn_data_bsc_info = TnDataBscInfo(**dict_row_info)

@@ -11,7 +11,6 @@ from dto.th_data_clct_mastr_log import ThDataClctMastrLog
 from dto.tn_clct_file_info import TnClctFileInfo
 from util.file_util import FileUtil
 from util.common_util import CommonUtil
-from util.call_url_util import CallUrlUtil
 from dto.tc_com_dtl_cd import TcCmmnDtlCd as CONST
 
 from util.date_custom_util import DateUtil

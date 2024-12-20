@@ -44,8 +44,8 @@ def sdag_5min_put_sftp():
         th_data_clct_mastr_log 테이블에서 파일전송 대상 로그 정보 조회, tn_data_bsc_info 테이블에서 파일전송 대상 기본 정보 조회
         return: collect_data_list
         """
-        # data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul").add(days=-1).strftime("%Y%m%d") # 처리 데이터의 시작 날짜 (데이터 기준 시점)
-        data_interval_start = now().strftime("%Y%m%d") # 처리 데이터의 시작 날짜 (데이터 기준 시점)
+        data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul").add(days=-1).strftime("%Y%m%d") # 처리 데이터의 시작 날짜 (데이터 기준 시점)
+        # data_interval_start = now().strftime("%Y%m%d") # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         # 파일전송 대상 로그 정보 조회
         select_log_info_stmt = f'''
                             SELECT b.*
@@ -63,10 +63,11 @@ def sdag_5min_put_sftp():
                             '''
         try:
             collect_data_list = CommonUtil.set_fail_info(session, select_log_info_stmt, kwargs)
-        except Exception as e:
+        except Exception as e:    
             logging.info(f"select_send_data_info Exception::: {e}")
             raise e
         if collect_data_list == []:
+            # logging.info("!!!!!!!!!!!",select_log_info_stmt)
             logging.info(f"select_send_data_info ::: 파일전송 대상없음 프로그램 종료")
             raise AirflowSkipException()
         return collect_data_list

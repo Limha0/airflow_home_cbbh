@@ -17,7 +17,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 @dag(
     dag_id="sdag_api_to_csv_day",
     schedule="@daily",
-    start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
+    start_date=datetime(2020, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
     render_template_as_native_obj=True,
@@ -43,6 +43,10 @@ def api_to_csv_day():
         tn_data_bsc_info 테이블에서 수집 대상 기본 정보 조회 후 th_data_clct_mastr_log 테이블에 입력
         return: collect_data_list
         """
+
+        #test
+        logging.basicConfig(level=logging.DEBUG)
+        logging.getLogger("urllib3").setLevel(logging.DEBUG)
         # 수집 대상 기본 정보 조회
         select_bsc_info_stmt = '''
                             SELECT *, (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND pvdr_site_cd = dtl_cd) AS pvdr_site_nm
@@ -55,8 +59,8 @@ def api_to_csv_day():
                                 AND link_ntwk_otsd_insd_se = '외부'
                                 AND LOWER(pvdr_site_cd) != 'ps00010' -- 국가통계포털 제외
                                 AND LOWER(pvdr_inst_cd) != 'pi00011' -- 카페_게시글, 양주시_뉴스_기사, 네이버블로그 제외
-	                            AND LOWER(dtst_cd) != 'data8' -- 교통돌발정보 제외
-	                            AND NOT LOWER(dtst_cd) in ('data32') -- 측정소별_실시간_일평균_정보_조회
+                                AND LOWER(dtst_cd) != 'data8' -- 교통돌발정보 제외
+                                AND NOT LOWER(dtst_cd) in ('data32') -- 측정소별_실시간_일평균_정보_조회
                             ORDER BY sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
@@ -107,7 +111,7 @@ def api_to_csv_day():
             pvdr_inst_cd = tn_data_bsc_info.pvdr_inst_cd.lower()
             base_url = return_url = tn_data_bsc_info.link_data_clct_url
 
-            # 파라미터 및 파라미터 길이 설정
+            # # 파라미터 및 파라미터 길이 설정
             data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
             params_dict, params_len = CallUrlUtil.set_params(tn_data_bsc_info, session, data_interval_start, data_interval_end, kwargs)
@@ -169,10 +173,12 @@ def api_to_csv_day():
 
                         # url 설정
                         return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
-                        
+                        print ('!!!!!!!! : ',return_url)
                         # url 호출
-                        response = requests.get(return_url, verify= False)
+                        response = requests.get(return_url, verify= False) #prod
+                        #response = requests.get(return_url, verify=False,cert=context) #test
                         response_code = response.status_code
+                        #print(f"Response Code@@@@: {response_code}, Response Body: {response.text}")
 
                         # url 호출 시 메세지 설정
                         header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_no, return_url, total_page, full_file_name, header, mode)
@@ -372,7 +378,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2023,10,2,15,00),
+        execution_date=datetime(2020,10,2,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

@@ -957,7 +957,7 @@ def csv_to_dw_hadoop():
 
         copy_stmt = f"""copy {temp_table_name} (
             "{'", "'.join(file_column)}"
-        ) from '/var/lib/postgresql/data/DwTemp/{file_name}' delimiter '{link_file_sprtr}' csv header encoding 'UTF-8';
+        ) from '/var/lib/postgresql/temp/DwTemp/{file_name}' delimiter '{link_file_sprtr}' csv header encoding 'UTF-8';
         """
         # local test
 

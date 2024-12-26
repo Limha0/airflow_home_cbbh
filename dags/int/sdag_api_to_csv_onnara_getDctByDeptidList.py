@@ -44,7 +44,7 @@ def api_to_csv_onnara():
         """
         # 수집 대상 기본 정보 조회
         select_bsc_info_stmt = '''
-                            SELECT *, (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND pvdr_site_cd = dtl_cd) AS pvdr_site_nm
+                           SELECT *, (SELECT dtl_cd_nm FROM tc_com_dtl_cd WHERE group_cd = 'pvdr_site_cd' AND pvdr_site_cd = dtl_cd) AS pvdr_site_nm
                             FROM tn_data_bsc_info
                             WHERE 1=1
                                 AND LOWER(clct_yn) = 'y'
@@ -53,8 +53,6 @@ def api_to_csv_onnara():
                                 AND LOWER(link_clct_cycle_cd) = 'month'
                                 AND link_ntwk_otsd_insd_se = '내부'
                                 AND LOWER(dtst_cd) IN ('data1022')
-                                -- AND LOWER(dtst_cd) IN ('data1022', 'data1060') -- 문서등록대장_V2_건수조회, 목록 출력
-                                -- AND LOWER(dtst_cd) IN ('data762') --test
                             ORDER BY sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
@@ -142,6 +140,7 @@ def api_to_csv_onnara():
             try:
                  # 총 데이터 건수 조회 url 호출
                 total_count = CallUrlUtil.get_total_count(tn_data_bsc_info.data_se_col_two,tn_data_bsc_info.data_se_col_one,pvdr_data_se_vl_three,authKey,dtst_cd)
+                # total_count = 190
                 logging.info(f"총 데이터 건수: {total_count}, 총 페이지 수: {total_page}")
 
                 # 파라미터 길이만큼 반복 호출
@@ -186,6 +185,8 @@ def api_to_csv_onnara():
                         req_soap = OnnaraUtil.make_req_soap(dtst_cd, systemid, loginid, deptCd, authKey, message, message_bms)
                         addr = f"{return_url}"
 
+                        logging.info(f"call_url addr::: {addr}")
+
                         # URL 호출
                         res_soap = OnnaraUtil.send_http_request(addr, req_soap, charset)
                         logging.info(f"call_url res_soap::: {res_soap}")
@@ -223,10 +224,9 @@ def api_to_csv_onnara():
 
                             result = CallUrlUtil.read_json(json_data, pvdr_site_cd, pvdr_inst_cd, dtst_cd, tn_data_bsc_info.data_se_col_one)
                             result_json = result['result_json_array']
-                            logging(f"result_json::: {result_json}")
                             result_size = len(result_json)
                             print("result_json :::::::::",result_json)
-
+                            
                             required_fields = [
                                 "docId", "docNoSeq", "docTtl", "reportDt", "state", "stateName", "authorId",
                                 "authorName", "authorDeptNameDesc", "lastAuthorId", "lastAuthorName", "pathState",

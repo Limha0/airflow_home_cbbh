@@ -53,8 +53,10 @@ def rdb_to_csv():
                                     AND link_ntwk_otsd_insd_se = '내부' --주민요약DB
                                 ORDER BY sn
                                 '''
-        data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
+        # data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
+        data_interval_start = kwargs['data_interval_start'].in_timezone(pendulum.timezone("Asia/Seoul"))
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
+        logging.info(f"data_interval_start: {data_interval_start}, data_interval_end: {data_interval_end}")
         if now().strftime("%H") == '05':
             data_interval_start = now().add(days=-1)
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
@@ -180,60 +182,17 @@ def rdb_to_csv():
             connection_url = db_connection_url_result['connection_url']
             jars = [f"{os.environ['PYTHONPATH']}/jars/mysql-connector-java-5.1.49.jar", f"{os.environ['PYTHONPATH']}/jars/mariadb-java-client-3.1.4.jar", f"{os.environ['PYTHONPATH']}/jars/ojdbc8.jar"]
 
-            # engine 생성
+            # engine 생성 20241120 수정함 (back local)
             try:
                 db_engine = jp.connect(f'{tn_db_cntn_info.driver_class_nm}', connection_url, [f'{user_id}', f'{pswd}'], jars)
 
-                # 청크 단위로 데이터를 읽어오면서 처리
-                # os.chdir(full_file_path)
-                # file_name = tn_clct_file_info.insd_file_nm + "." + tn_clct_file_info.insd_file_extn  # csv 파일명
-                # chunksize = 100000  # 원하는 청크 사이즈 설정
-                # row_count = 0
-                # file_size = 0
-                # for chunk in pd.read_sql_query(select_db_stmt, db_engine, chunksize=chunksize):
-                #     # 데이터 처리 및 개행 문자 제거
-                #     chunk = chunk.replace("\n"," ", regex=True).replace("\r\n"," ", regex=True).replace("\r"," ", regex=True).apply(lambda x: (x.str.strip() if x.dtypes == 'object' and x.str._inferred_dtype == 'string' else x), axis=0)
-                #     chunk.index += row_count + 1  # 인덱스 업데이트
-
-                #     # CSV 파일에 청크 단위로 쓰기
-                #     chunk.to_csv(file_name, sep=link_file_sprtr, mode='a', header=(row_count == 0), index_label="clct_sn", encoding='utf-8-sig')
-
-                #     row_count += len(chunk)
-                #     logging.info(f"현재까지 파일 내 행 개수: {row_count}")
-                
-                # full_file_name = full_file_path + file_name
-                
-
-                # --------------------------------------
-                # # csv 파일 생성
-                # os.chdir(full_file_path)
-                # file_name = tn_clct_file_info.insd_file_nm + "." + tn_clct_file_info.insd_file_extn  # csv 파일명
-                # df = pd.read_sql_query(select_db_stmt, db_engine)
-                # df = df.replace("\n"," ", regex=True).replace("\r\n"," ", regex=True).replace("\r"," ", regex=True).apply(lambda x: (x.str.strip() if x.dtypes == 'object' and x.str._inferred_dtype == 'string' else x), axis = 0)  # 개행문자 제거, string 양 끝 공백 제거
-                # df.index += 1
-                # df.to_csv(file_name, sep = tn_data_bsc_info.link_file_sprtr, header = True, index_label= "clct_sn", mode='w', encoding='utf-8-sig')
-                # full_file_name = full_file_path + file_name
-                # --------------------------------------------
-
-                # 쿼리 실행 후 수동으로 데이터 가져오기
-                cursor = db_engine.cursor()
-                cursor.execute(select_db_stmt)
-                rows = cursor.fetchall()
-
-                # 열 이름 가져오기
-                columns = [desc[0] for desc in cursor.description]
-
-                # Pandas DataFrame 생성
-                df = pd.DataFrame(rows, columns=columns)
-
-                # 개행문자 제거 및 string 양 끝 공백 제거
-                df = df.replace("\n"," ", regex=True).replace("\r\n"," ", regex=True).replace("\r"," ", regex=True).apply(lambda x: (x.str.strip() if x.dtypes == 'object' and x.str._inferred_dtype == 'string' else x), axis = 0)
-                df.index += 1
-
-                # CSV 파일로 저장
+                # csv 파일 생성
                 os.chdir(full_file_path)
                 file_name = tn_clct_file_info.insd_file_nm + "." + tn_clct_file_info.insd_file_extn  # csv 파일명
-                df.to_csv(file_name, sep=tn_data_bsc_info.link_file_sprtr, header=True, index_label="clct_sn", mode='w', encoding='utf-8-sig')
+                df = pd.read_sql_query(select_db_stmt, db_engine)
+                df = df.replace("\n"," ", regex=True).replace("\r\n"," ", regex=True).replace("\r"," ", regex=True).apply(lambda x: (x.str.strip() if x.dtypes == 'object' and x.str._inferred_dtype == 'string' else x), axis = 0)  # 개행문자 제거, string 양 끝 공백 제거
+                df.index += 1
+                df.to_csv(file_name, sep = tn_data_bsc_info.link_file_sprtr, header = True, index_label= "clct_sn", mode='w', encoding='utf-8-sig')
                 full_file_name = full_file_path + file_name
 
                 # 파일 사이즈 확인

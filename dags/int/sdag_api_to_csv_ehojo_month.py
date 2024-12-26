@@ -74,8 +74,8 @@ def api_to_csv_ehojo():
         return: file_path: tn_clct_file_info 테이블에 저장할 파일 경로
         """
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-        final_file_path = kwargs['var']['value'].root_collect_file_path  # local test
-        # final_file_path = kwargs['var']['value'].final_file_path
+        #final_file_path = kwargs['var']['value'].root_collect_file_path  # local test
+        final_file_path = kwargs['var']['value'].final_file_path
         file_path = CommonUtil.create_directory(collect_data_list, session, data_interval_end, final_file_path, "n")
         return file_path
     
@@ -100,8 +100,8 @@ def api_to_csv_ehojo():
             tn_data_bsc_info = TnDataBscInfo(**collect_data_list['tn_data_bsc_info'])
             tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
             log_full_file_path = collect_data_list['log_full_file_path']
-            final_file_path = kwargs['var']['value'].root_collect_file_path  # local test
-            # final_file_path = kwargs['var']['value'].final_file_path
+            #final_file_path = kwargs['var']['value'].root_collect_file_path  # local test
+            final_file_path = kwargs['var']['value'].final_file_path
 
             dtst_cd = th_data_clct_mastr_log.dtst_cd.lower()
             pvdr_site_cd = tn_data_bsc_info.pvdr_site_cd.lower()
@@ -150,7 +150,7 @@ def api_to_csv_ehojo():
                                 repeat_num += 1
                                 break
                             else:  # 파라미터 길이 != 1)
-                                # th_data_clct_contact_fail_hstry_log 에 입력
+                                # th_data_clct_call_failr_hist_log 에 입력
                                 CallUrlUtil.insert_fail_history_log(th_data_clct_mastr_log, base_url, file_path, session, params_dict['param_list'][repeat_num - 1], pagd_no)
 
                                 # 총 페이지 수만큼 덜 돌았을 때

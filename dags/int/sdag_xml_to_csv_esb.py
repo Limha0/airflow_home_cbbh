@@ -18,7 +18,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 @dag(
     dag_id="sdag_xml_to_csv_esb",
-    schedule="40 5 * * *",
+    schedule="35 5 * * *",
     start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
@@ -35,7 +35,7 @@ def xml_to_csv_esb():
 
     # sqlalchey session 생성
     session = sessionmaker(engine, expire_on_commit=False)
-
+    
     @task
     def insert_collect_data_info(**kwargs):
         """
@@ -55,6 +55,7 @@ def xml_to_csv_esb():
                                 AND link_ntwk_otsd_insd_se = '내부'
                                 AND LOWER(dtst_cd) = 'data675'
                                 and lower(dtst_dtl_cd) != 'data675_1'
+
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
@@ -76,8 +77,7 @@ def xml_to_csv_esb():
             """
             
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path
+            final_file_path = kwargs['var']['value'].final_file_path
             file_path = CommonUtil.create_directory(collect_data_list, session, data_interval_end, final_file_path, "n")
             return file_path
         
@@ -99,8 +99,7 @@ def xml_to_csv_esb():
             tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
             log_full_file_path = collect_data_list['log_full_file_path']
             esb_file_path = kwargs['var']['value'].esb_file_path  # 원천 파일 경로
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path
+            final_file_path = kwargs['var']['value'].final_file_path
             # error_file_path = "/home/gsdpmng/data/error_file"  # 에러 파일 경로
             # error_file_path = kwargs['var']['value'].error_file_path  # 에러 파일 경로
 
@@ -272,12 +271,6 @@ def xml_to_csv_esb():
 
                     # 누락된 컬럼이 모두 추가된 new_dict를 new_result_json에 포함
                     new_result_json.append(new_dict)
-                
-                # # dutyId 로깅
-                # if new_result_json:
-                #     for item in new_result_json:
-                #         if 'dutyId' in item:
-                #             logging.info(f"dutyId: {item['dutyId']}")    
 
                 result_size = len(new_result_json)
                 logging.info(f"최종 JSON 데이터 크기 (CSV 변환용): {result_size}")
@@ -291,13 +284,13 @@ def xml_to_csv_esb():
                 # 신문고민원_처리 데이터 비식별 처리
                 if dtst_se_val == 'Process':
                     for item in new_result_json:
-                        # logging.info(f"dutyId: {item['dutyId']}, dutyName: {item['dutyName']}") 
+                        #logging.info(f"dutyId: {item['dutyId']}, dutyName: {item['dutyName']}") 
                         item['dutyId'] = CallUrlUtil.anonymize(item.get('dutyId', ''))
                         item['dutyName'] = CallUrlUtil.anonymize(item.get('dutyName', ''))
                         # 비식별화된 데이터 로깅
-                        # logging.info(f"비식별화된 dutyId: {item['dutyId']}, dutyName: {item['dutyName']}")
-
-                # 신문고민원_신청 데이터 비식별 처리 (cellPhone	linePhone	birthDate	sex)
+                        #logging.info(f"비식별화된 dutyId: {item['dutyId']}, dutyName: {item['dutyName']}")
+                        
+                 # 신문고민원_신청 데이터 비식별 처리 (cellPhone    linePhone    birthDate    sex)
                 if dtst_se_val == 'Petition': 
                     for item in new_result_json:
                         logging.info(f"Petitioner_cellPhone: {item['Petitioner_cellPhone']}") 
@@ -305,7 +298,7 @@ def xml_to_csv_esb():
                         item['Petitioner_linePhone'] = CallUrlUtil.anonymize(item.get('Petitioner_linePhone', ''))
                         item['Petitioner_birthDate'] = CallUrlUtil.anonymize(item.get('Petitioner_birthDate', ''))
                         item['Petitioner_sex'] = CallUrlUtil.anonymize(item.get('Petitioner_sex', ''))
-                        logging.info(f"비식별화된 Petitioner_cellPhone: {item['Petitioner_cellPhone']}, Petitioner_birthDate: {item['Petitioner_birthDate']}")
+                        logging.info(f"비식별화된 Petitioner_cellPhone: {item['Petitioner_cellPhone']}, Petitioner_sex: {item['Petitioner_sex']}")
 
                 # 데이터 존재 시
                 if result_size != 0:
@@ -319,7 +312,7 @@ def xml_to_csv_esb():
                 # 파일 사이즈 확인
                 if os.path.exists(full_file_name):
                     file_size = os.path.getsize(full_file_name)
-                logging.info(f"call_url file_name::: {file_name}, file_size::: {file_size}")
+                logging.info(f"call_url file_size::: {file_size}")
 
                 # logging.info(f"수집 끝")
                 if row_count == 0:
@@ -353,7 +346,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2024,11,27,15,00),
+        execution_date=datetime(2024,11,18,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

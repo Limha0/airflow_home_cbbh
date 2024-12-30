@@ -65,9 +65,22 @@ def api_to_csv_fail_retry():
                                 AND LOWER(link_clct_mthd_dtl_cd) = 'open_api'
                                 AND link_ntwk_otsd_insd_se = '외부'
                                 AND LOWER(a.dtst_cd) in ('data5', 'data6') -- 국가교통정보센터_공사_사고정보, 국가교통정보센터_CCTV_영상정보
-                                AND LOWER(b.step_se_cd) IN ('{CONST.STEP_CNTN}', '{CONST.STEP_CLCT}') -- 접속단계, 수집단계
-                                AND NOT (LOWER(b.step_se_cd) = '{CONST.STEP_CLCT}' AND LOWER(b.stts_cd) = '{CONST.STTS_COMP}') -- 수집단계 성공 제외
-                                AND b.clct_ymd = '{data_interval_start}'
+                               AND (
+                                    ( -- 조건 1: 접속단계/수집단계 관련 조건
+                                        LOWER(b.step_se_cd) IN ('{CONST.STEP_CNTN}', '{CONST.STEP_CLCT}') -- 접속단계, 수집단계
+                                        AND NOT (LOWER(b.step_se_cd) = '{CONST.STEP_CLCT}' AND LOWER(b.stts_cd) = '{CONST.STTS_COMP}') -- 수집단계 성공 제외
+                                    )
+                                    OR
+                                    ( -- 조건 2: 원천데이터 없음 조건
+                                        TRIM(LOWER(COALESCE(stts_msg, ''))) = '{CONST.MSG_CLCT_COMP_NO_DATA}'
+                                    )
+                                )
+                                -- AND b.clct_ymd = '{data_interval_start}' -- 20241130 아래조건으로 변경 에러나는거보고 수정하든 해야함.
+                                AND b.clct_log_sn NOT IN (
+                                    SELECT clct_log_sn
+                                    FROM th_data_clct_contact_fail_hstry_log
+                                    WHERE LOWER(stts_cd) != 'comp'
+                                ) -- th_data_clct_contact_fail_hstry_log 에 해당하는 로그는 제외
                                 {run_conf}
                             ORDER BY b.clct_log_sn
                             '''
@@ -377,7 +390,7 @@ def api_to_csv_fail_retry():
                 for dict_row in conn.execute(select_log_info_stmt).all():
                     th_data_clct_mastr_log = ThDataClctMastrLog(**dict_row)
                     dtst_cd = th_data_clct_mastr_log.dtst_cd
-                    th_data_clct_mastr_log.reclect_flfmt_times += 1  # 재수집 수행 횟수 증가
+                    th_data_clct_mastr_log.reclect_flfmt_nmtm += 1  # 재수집 수행 횟수 증가
 
                     # 재수집 대상 기본 정보 조회
                     select_bsc_info_stmt = f'''
@@ -389,11 +402,13 @@ def api_to_csv_fail_retry():
                                             AND LOWER(dtst_cd) = '{dtst_cd}'
                                         '''
                     dict_row_info = conn.execute(select_bsc_info_stmt).first()
+                    logging.info(f"select_bsc_info_stmt !!!!!::: {select_bsc_info_stmt}")
                     tn_data_bsc_info = TnDataBscInfo(**dict_row_info)
 
                     # 수집파일정보 set
                     select_file_info_stmt = f"SELECT * FROM tn_clct_file_info WHERE clct_log_sn = '{th_data_clct_mastr_log.clct_log_sn}'"
                     dict_row_file_info = conn.execute(select_file_info_stmt).first()
+                    logging.info(f"select_file_info_stmt !!!!!::: {select_file_info_stmt}")
                     tn_clct_file_info = TnClctFileInfo(**dict_row_file_info)
 
                     # 수집로그파일 경로 set

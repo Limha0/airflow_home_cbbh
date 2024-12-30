@@ -12,6 +12,24 @@ from dto.th_data_clct_mastr_log import ThDataClctMastrLog
 from dto.tn_clct_file_info import TnClctFileInfo
 from dto.tc_com_dtl_cd import TcCmmnDtlCd as CONST
 from airflow.exceptions import AirflowSkipException
+import requests  # 추가
+from requests.adapters import HTTPAdapter  # 추가
+from urllib3.util import Retry  # 추가
+# urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+def create_session():
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS", "POST"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 @dag(
@@ -173,8 +191,24 @@ def api_to_csv_month():
                         return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
                         
                         # url 호출
-                        response = requests.get(return_url, verify= False, timeout=3600)
-                        response_code = response.status_code
+                        # response = requests.get(return_url, verify= False, timeout=3600)
+                        # response_code = response.status_code
+
+                        # # 대기 시간 추가
+                        # time.sleep(5)  # 1초 대기
+                        try:
+                            response =  requests.get(return_url, verify=False, timeout=3600)
+                            response_code = response.status_code
+                            time.sleep(1)
+                        except requests.exceptions.ConnectionError:
+                            logging.info(f"Connection Error at URL {return_url} - waiting 5 seconds and retrying...")
+                            time.sleep(5)
+                            retry_num += 1
+                            continue
+                        except requests.exceptions.RequestException as e:
+                            logging.error(f"Request failed at URL {return_url}: {e}")
+                            retry_num += 1
+                            continue
 
                         # url 호출 시 메세지 설정
                         header, mode = CallUrlUtil.get_request_message(retry_num, repeat_num, page_no, return_url, total_page, full_file_name, header, mode)
@@ -201,12 +235,12 @@ def api_to_csv_month():
                             # 데이터 구분 컬럼, 값 추가
                             add_column = tn_data_bsc_info.data_se_col_two
                             add_column_dict = {}
-                            if dtst_cd in {"data778", "data781", "data782", "data784"}:
-                                add_column_dict = {add_column : params_dict['param_list'][repeat_num - 1]}
-                            if dtst_cd == "data780":  # 도서관_지역별_인기대출_도서_조회
-                                params_val = params_dict['param_list'][repeat_num - 1].split(',')
-                                add_column = add_column.split(',')
-                                add_column_dict = {add_column[0] : params_val[0], add_column[1] : params_val[1], add_column[2] : params_val[2], add_column[3] : params_dict['params'][0], add_column[4] : params_dict['params'][1]}
+                            # if dtst_cd in {"data778", "data781", "data782", "data784"}:
+                            #     add_column_dict = {add_column : params_dict['param_list'][repeat_num - 1]}
+                            # if dtst_cd == "data780":  # 도서관_지역별_인기대출_도서_조회
+                            #     params_val = params_dict['param_list'][repeat_num - 1].split(',')
+                            #     add_column = add_column.split(',')
+                            #     add_column_dict = {add_column[0] : params_val[0], add_column[1] : params_val[1], add_column[2] : params_val[2], add_column[3] : params_dict['params'][0], add_column[4] : params_dict['params'][1]}
                             if dtst_cd in {"data785", "data786"} or (pvdr_inst_cd == "pi00012" and dtst_cd not in {"data787", "data788"}):  # 이달의_키워드, 지역별 독서량_독서율, TAAS
                                 add_column_dict = {add_column : params_dict['params']}
                             

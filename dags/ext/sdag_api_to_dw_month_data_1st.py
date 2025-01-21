@@ -103,6 +103,7 @@ def api_dw_month_data_1st():
             log_full_file_path = collect_data_list['log_full_file_path']
 
             dtst_cd = th_data_clct_mastr_log.dtst_cd.lower()
+            link_se_cd = tn_data_bsc_info.link_se_cd.lower()
             root_collect_file_path = kwargs['var']['value'].root_collect_file_path
             pvdr_site_cd = tn_data_bsc_info.pvdr_site_cd.lower()
             pvdr_inst_cd = tn_data_bsc_info.pvdr_inst_cd.lower()
@@ -183,7 +184,7 @@ def api_dw_month_data_1st():
                                         repeat_num += 1
                                         break
                         # url 설정
-                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
+                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, link_se_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
                         # return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
 
                         # url 호출

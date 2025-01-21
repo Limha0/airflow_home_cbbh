@@ -73,11 +73,13 @@ def api_to_csv_month():
                                 AND link_ntwk_otsd_insd_se = '외부'
                                 AND LOWER(pvdr_site_cd) != 'ps00010' -- 국가통계포털 제외
                                 AND LOWER(pvdr_inst_cd) != 'pi00002' -- 경기도시장상권진흥원
-                                AND LOWER(pvdr_sou_data_pvsn_stle) != 'zip'
+                                AND LOWER(coalesce(pvdr_sou_data_pvsn_stle,'')) != 'zip'
                                 AND LOWER(dtst_cd) not in ('data50','data778','data779','data781','data782','data784') -- 후 수집 제외
                                 AND NOT LOWER(dtst_cd) = 'data33' -- 대기오염_국가측정망_월평균_측정정보_조회 제외
-                                AND NOT LOWER(dtst_cd) in ('data919','data920','data921','data922','data1008','data1009','data1010','data1011','data1012','data1013','data1014') -- 경기도 용인, 공공데이터포털 제외
-                            ORDER BY sn
+                                AND NOT LOWER(dtst_cd) in ('data919','data920','data922') -- openAPI 제외
+                                and dtst_cd ='data978' --test
+                            --    and link_se_cd = 'new'
+                            ORDER BY sn;
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
@@ -123,6 +125,7 @@ def api_to_csv_month():
             root_collect_file_path = kwargs['var']['value'].root_collect_file_path
 
             dtst_cd = th_data_clct_mastr_log.dtst_cd.lower()
+            link_se_cd = tn_data_bsc_info.link_se_cd.lower()
             pvdr_site_cd = tn_data_bsc_info.pvdr_site_cd.lower()
             pvdr_inst_cd = tn_data_bsc_info.pvdr_inst_cd.lower()
             base_url = return_url = tn_data_bsc_info.link_data_clct_url
@@ -188,7 +191,7 @@ def api_to_csv_month():
                                         break
 
                         # url 설정
-                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
+                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, link_se_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
                         
                         # url 호출
                         # response = requests.get(return_url, verify= False, timeout=3600)

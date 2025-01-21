@@ -99,6 +99,7 @@ def api_to_csv_kosis():
             root_collect_file_path = kwargs['var']['value'].root_collect_file_path
 
             dtst_cd = th_data_clct_mastr_log.dtst_cd.lower()
+            link_se_cd = tn_data_bsc_info.link_se_cd.lower()
             pvdr_site_cd = tn_data_bsc_info.pvdr_site_cd.lower()
             pvdr_inst_cd = tn_data_bsc_info.pvdr_inst_cd.lower()
             base_url = return_url = tn_data_bsc_info.link_data_clct_url
@@ -164,7 +165,8 @@ def api_to_csv_kosis():
                                         break
 
                         # url 설정
-                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
+                        # return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
+                        return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, link_se_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
                         
                         # url 호출
                         response = requests.get(return_url, verify= False)                            

@@ -332,7 +332,7 @@ class CallUrlUtil:
         return param_list
 
 
-    def set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no):
+    def set_url(dtst_cd, link_se_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no):
         """
         dtst_cd 별 url 설정
         params: dtst_cd, params_dict, repeat_num, page_no
@@ -374,6 +374,8 @@ class CallUrlUtil:
             return f"{page_no}&msrstnName={param_list[repeat_num - 1]}&inqBginMm={params}&inqEndMm={params}"
         if dtst_cd == "data786":  # 지역별 독서량_독서율
             return f"{params[:4]}&month={params[-2:]}"
+        if link_se_cd == "new" and dtst_cd not in {"data978"}: #link_se_cd 연계구분코드 new인 데이터 중에서 dtst_cd가 data978이 아닌 데이터셋
+            return ""
         else:
             return f"{page_no}"
         #     return f"{param_list[repeat_num - 1]}&pageNo={page_no}"
@@ -396,11 +398,12 @@ class CallUrlUtil:
     
     @staticmethod
     def get_request_message(retry_num, repeat_num, page_no, return_url, total_page, full_file_name, header, mode):
+    
         logging.info(f"[DEBUG] Inside get_request_message: retry_num={retry_num}, repeat_num={repeat_num}, page_no={page_no}, return_url={return_url}, total_page={total_page}, full_file_name={full_file_name}, header={header}, mode={mode}")
         if retry_num == 0 and repeat_num == 1 and page_no == 1:  # 첫 호출
             if full_file_name is not None:
                 if os.path.exists(full_file_name):
-                   os.remove(full_file_name)
+                    os.remove(full_file_name)
             logging.info(f"호출 url: {return_url}")
         elif retry_num != 0:  # 재호출
             logging.info(f"호출 결과 없음, url: {return_url} 로 재호출, 재시도 횟수: {retry_num}")
@@ -437,7 +440,7 @@ class CallUrlUtil:
                 logging.error("데이터프레임이 비어 있음. CSV 파일 생성 중단.")
                 raise ValueError("데이터프레임이 비어 있음. CSV 파일 생성 불가.")
             df = df.replace("\n"," ", regex=True).replace("\r\n"," ", regex=True).replace("\r"," ", regex=True).apply(lambda x: (x.str.strip() if x.dtypes == 'object' and x.str._inferred_dtype == 'string' else x), axis = 0)  # 개행문자 제거, string 양 끝 공백 제거
-        
+            
             full_file_name = full_file_path + file_name
             # 5분_소통정보, 대기오염정보_측정소별_실시간_측정정보_조회(->대기오염_국가측정망_시간대별_측정정보), 실시간_측정정보_조회(->대기오염_자체측정망_시간대별_측정정보) - clct_sn 생성하지않음
             if '5분_소통정보' in file_name or '대기오염_국가측정망_시간대별_측정정보' in file_name or '대기오염_자체측정망_시간대별_측정정보' in file_name:
@@ -460,6 +463,8 @@ class CallUrlUtil:
                     if row_count != 0:
                         column_order = pd.read_csv(full_file_name, sep= link_file_sprtr, low_memory = False).columns.drop('clct_sn')
                         df = df.reindex(columns=column_order, fill_value=None)
+                        # df = df[column_order]
+                        #print("@@@@@@df : ",df)
                     df.to_csv(full_file_name, sep=link_file_sprtr, header=header, index_label="clct_sn", mode=mode, encoding='utf-8-sig')
         # 파일 생성 여부 확인
             if not os.path.exists(full_file_name):
@@ -669,8 +674,6 @@ class CallUrlUtil:
             namespaces = {'soapenv': 'http://schemas.xmlsoap.org/soap/envelope/',
                   'n1': 'http://hamoni.mogaha.go.kr/bms',
                   'ns2': 'java:gov.bms.lnk.ini.vo'}
-            
-            # logging.info(f" call_url_util get_total_count dtst_cd:\n{dtst_cd}")
 
             if dtst_cd == 'data1022':
                 total_count_element = root.find('.//ns2:totalCnt', namespaces)
@@ -692,4 +695,3 @@ class CallUrlUtil:
         except ET.ParseError as e:
             logging.error(f"Error parsing SOAP response: {e}")
             return 0
-    

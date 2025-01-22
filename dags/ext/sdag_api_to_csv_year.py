@@ -107,8 +107,6 @@ def api_to_csv_year():
 
             # 파라미터 및 파라미터 길이 설정
             data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
-            if dtst_cd.lower() == 'data650':  # 한국천문연구원_특일_정보
-                data_interval_start = data_interval_start.add(years=1)  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
             params_dict, params_len = CallUrlUtil.set_params(tn_data_bsc_info, session, data_interval_start, data_interval_end, kwargs)
 

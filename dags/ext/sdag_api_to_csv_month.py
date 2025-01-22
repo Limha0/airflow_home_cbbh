@@ -77,8 +77,6 @@ def api_to_csv_month():
                                 AND LOWER(dtst_cd) not in ('data50','data778','data779','data781','data782','data784') -- 후 수집 제외
                                 AND NOT LOWER(dtst_cd) = 'data33' -- 대기오염_국가측정망_월평균_측정정보_조회 제외
                                 AND NOT LOWER(dtst_cd) in ('data919','data920','data922') -- openAPI 제외
-                                and dtst_cd ='data978' --test
-                            --    and link_se_cd = 'new'
                             ORDER BY sn;
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
@@ -130,8 +128,10 @@ def api_to_csv_month():
             pvdr_inst_cd = tn_data_bsc_info.pvdr_inst_cd.lower()
             base_url = return_url = tn_data_bsc_info.link_data_clct_url
 
-            # 파라미터 및 파라미터 길이 설정
+             # 파라미터 및 파라미터 길이 설정
             data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
+            if dtst_cd.lower() == 'data650':  # 한국천문연구원_특일_정보
+                data_interval_start = data_interval_start.add(years=1)  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
             params_dict, params_len = CallUrlUtil.set_params(tn_data_bsc_info, session, data_interval_start, data_interval_end, kwargs)
 

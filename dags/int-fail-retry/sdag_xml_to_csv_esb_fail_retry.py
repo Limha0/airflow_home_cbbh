@@ -60,6 +60,7 @@ def xml_to_csv_esb_fail_retry():
                                 AND LOWER(link_clct_cycle_cd) = 'day'
                                 AND link_ntwk_otsd_insd_se = '내부'
                                 AND LOWER(a.dtst_cd) = 'data675'
+                                and lower(dtst_dtl_cd) != 'data675_1'
                                 AND LOWER(b.step_se_cd) NOT IN ('{CONST.STEP_FILE_STRGE_SEND}', '{CONST.STEP_DW_LDADNG}') -- 스토리지파일전송단계, DW 적재단계 제외
                                 AND COALESCE(stts_msg, '') != '{CONST.MSG_CLCT_COMP_NO_DATA}' -- 원천데이터 없음 제외
                                 AND NOT (LOWER(b.step_se_cd) = '{CONST.STEP_FILE_INSD_SEND}' AND LOWER(b.stts_cd) = '{CONST.STTS_COMP}') -- 내부파일전송 성공 제외
@@ -89,8 +90,8 @@ def xml_to_csv_esb_fail_retry():
             """
             
             data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path
+            final_file_path = kwargs['var']['value'].final_file_path
+            # final_file_path = kwargs['var']['value'].root_final_file_path
             file_path = CommonUtil.create_directory(collect_data_list, session, data_interval_end, final_file_path, "n")
             return file_path
         
@@ -112,8 +113,8 @@ def xml_to_csv_esb_fail_retry():
             tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
             log_full_file_path = collect_data_list['log_full_file_path']
             esb_file_path = kwargs['var']['value'].esb_file_path  # 원천 파일 경로
-            # final_file_path = kwargs['var']['value'].final_file_path
-            final_file_path = kwargs['var']['value'].root_final_file_path
+            final_file_path = kwargs['var']['value'].final_file_path
+            # final_file_path = kwargs['var']['value'].root_final_file_path
             # error_file_path = "/home/gsdpmng/data/error_file"  # 에러 파일 경로
             # error_file_path = kwargs['var']['value'].error_file_path  # 에러 파일 경로
 
@@ -300,6 +301,16 @@ def xml_to_csv_esb_fail_retry():
                     for item in new_result_json:
                         item['dutyId'] = CallUrlUtil.anonymize(item.get('dutyId', ''))
                         item['dutyName'] = CallUrlUtil.anonymize(item.get('dutyName', ''))
+
+                # 신문고민원_신청 데이터 비식별 처리 (cellPhone    linePhone    birthDate    sex)
+                if dtst_se_val == 'Petition': 
+                    for item in new_result_json:
+                        logging.info(f"Petitioner_cellPhone: {item['Petitioner_cellPhone']}") 
+                        item['Petitioner_cellPhone'] = CallUrlUtil.anonymize(item.get('Petitioner_cellPhone', ''))
+                        item['Petitioner_linePhone'] = CallUrlUtil.anonymize(item.get('Petitioner_linePhone', ''))
+                        item['Petitioner_birthDate'] = CallUrlUtil.anonymize(item.get('Petitioner_birthDate', ''))
+                        item['Petitioner_sex'] = CallUrlUtil.anonymize(item.get('Petitioner_sex', ''))
+                        logging.info(f"비식별화된 Petitioner_cellPhone: {item['Petitioner_cellPhone']}, Petitioner_sex: {item['Petitioner_sex']}")
 
                 # 데이터 존재 시
                 if result_size != 0:

@@ -98,6 +98,7 @@ def api_to_csv_localdata():
                                     AND LOWER(b.stts_cd) != '{CONST.STTS_COMP}' -- 성공 제외
                                 ORDER BY b.clct_log_sn
                                 '''
+        logging.info(f"select_collect_data_fail_info_2nd !!!!!::: {select_log_info_stmt}")
         try:
             log_data_lists = []
             with session.begin() as conn:
@@ -115,6 +116,7 @@ def api_to_csv_localdata():
                                             AND LOWER(link_yn) = 'y'
                                             AND LOWER(dtst_cd) = '{dtst_cd}'
                                         '''
+                    logging.info(f"select_bsc_info_stmt 재수집 대상 기본 정보 조회 !!!!!::: {select_bsc_info_stmt}")
                     dict_row_info = conn.execute(select_bsc_info_stmt).first()
                     tn_data_bsc_info = TnDataBscInfo(**dict_row_info)
 
@@ -324,7 +326,7 @@ def api_to_csv_localdata():
                                         AND dtst_nm = replace('{file_name}','_{data_crtr_pnttm}','')
                                         AND LOWER(dw_load_yn) = 'y'
                                     )
-                                    AND column_name NOT IN ('data_crtr_pnttm','clct_sn','clct_pnttm','clct_log_sn','page_index')
+                                    AND column_name NOT IN ('data_crtr_pnttm','clct_sn','clct_pnttm','clct_log_sn','page_no')
                                     ORDER BY ordinal_position
                                 """
                         with session.begin() as conn:
@@ -342,7 +344,7 @@ def api_to_csv_localdata():
                             df.index += 1
                             df.to_csv(full_file_name, index_label= "clct_sn", sep=tn_data_bsc_info.link_file_sprtr, encoding='utf-8-sig')
 
-                        # th_data_clct_stts_hist_log 테이블에 insert
+                        # th_data_clct_stts_hstry_log 테이블에 insert
                         CommonUtil.insert_history_log(conn, th_data_clct_mastr_log, "y")
 
                         if file_size != 0:
@@ -364,7 +366,7 @@ def api_to_csv_localdata():
             with session.begin() as conn:
                 # 지방행정인허가 일회성 로그 제거
                 delete_stmt = f"""
-                    DELETE FROM th_data_clct_stts_hist_log WHERE clct_log_sn = {th_data_clct_mastr_log_temp.clct_log_sn};
+                    DELETE FROM th_data_clct_stts_hstry_log WHERE clct_log_sn = {th_data_clct_mastr_log_temp.clct_log_sn};
                     DELETE FROM th_data_clct_mastr_log WHERE clct_log_sn = {th_data_clct_mastr_log_temp.clct_log_sn};
                 """
                 conn.execute(delete_stmt)
@@ -378,7 +380,7 @@ def api_to_csv_localdata():
             # 일회성 로그 제외한 성공 로그 존재 시 삭제
             delete_stmt = f"""
                 DELETE FROM tn_clct_file_info WHERE LOWER(dtst_cd) = 'data648' and data_crtr_pnttm = '{data_crtr_pnttm}';
-                DELETE FROM th_data_clct_stts_hist_log WHERE clct_log_sn IN (
+                DELETE FROM th_data_clct_stts_hstry_log WHERE clct_log_sn IN (
                     SELECT clct_log_sn FROM th_data_clct_mastr_log WHERE LOWER(dtst_cd) = 'data648' AND data_crtr_pnttm = '{data_crtr_pnttm}' AND clct_log_sn != {th_data_clct_mastr_log_temp.clct_log_sn}
                 );
                 DELETE FROM th_data_clct_mastr_log WHERE LOWER(dtst_cd) = 'data648' AND data_crtr_pnttm = '{data_crtr_pnttm}' AND clct_log_sn != {th_data_clct_mastr_log_temp.clct_log_sn};

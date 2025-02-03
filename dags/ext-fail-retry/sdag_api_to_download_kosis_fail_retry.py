@@ -148,6 +148,7 @@ def api_to_download_kosis_fail_retry():
                 root_collect_file_path = kwargs['var']['value'].root_collect_file_path
 
                 dtst_cd = th_data_clct_mastr_log.dtst_cd.lower()
+                link_se_cd = tn_data_bsc_info.link_se_cd.lower()
                 pvdr_site_cd = tn_data_bsc_info.pvdr_site_cd.lower()
                 pvdr_inst_cd = tn_data_bsc_info.pvdr_inst_cd.lower()
                 base_url = return_url = tn_data_bsc_info.link_data_clct_url
@@ -165,7 +166,7 @@ def api_to_download_kosis_fail_retry():
                 params_dict, params_len = CallUrlUtil.set_params(tn_data_bsc_info, session, data_interval_start, data_interval_end, kwargs)
 
                 repeat_num = 1  # 파라미터 길이만큼 반복 호출 횟수
-                page_index = 1  # 현재 페이지
+                page_no = 1  # 현재 페이지
                 source_file_name = tn_clct_file_info.insd_file_nm + "." + tn_data_bsc_info.pvdr_sou_data_pvsn_stle  # 원천 파일명
                 full_file_path = root_collect_file_path + file_path
                 full_file_name = full_file_path + source_file_name
@@ -174,7 +175,8 @@ def api_to_download_kosis_fail_retry():
 
                 try:
                     # url 설정
-                    return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_index)}"
+                    return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, link_se_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
+                    # return_url = f"{base_url}{CallUrlUtil.set_url(dtst_cd, pvdr_site_cd, pvdr_inst_cd, params_dict, repeat_num, page_no)}"
                     
                     # url 호출
                     response = requests.get(return_url, verify= False)                    

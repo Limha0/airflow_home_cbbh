@@ -52,7 +52,7 @@ def api_to_csv_onnara():
                                 AND LOWER(link_clct_mthd_dtl_cd) = 'open_api'
                                 AND LOWER(link_clct_cycle_cd) = 'month'
                                 AND link_ntwk_otsd_insd_se = '내부'
-                                AND LOWER(dtst_cd) IN ('data1022')
+                                AND LOWER(dtst_cd) IN ('data1022') --부서별문서관리카드목록
                             ORDER BY sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)

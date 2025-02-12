@@ -363,25 +363,43 @@ def csv_to_dw_hadoop():
                                 #print("test : " ,client.write(hdfs_file_path, f, overwrite=True))
                             logging.info(f"파일이 Active 네임노드로 전송됨: {hdfs_file_path}")
 
-                    # 로그 업데이트
-                    select_log_info_stmt_update = get_select_stmt(None, "update", file_path, tn_data_bsc_info.pvdr_sou_data_pvsn_stle, None, "send")
-                    for dict_row in conn.execute(select_log_info_stmt_update).all():
-                        th_data_clct_mastr_log_update = ThDataClctMastrLog(**dict_row)
-                        tn_clct_file_info_update = get_file_info(th_data_clct_mastr_log_update.clct_log_sn, conn)
-                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info_update, session, th_data_clct_mastr_log_update, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_COMP, CONST.MSG_FILE_STRGE_SEND_COMP, "n")
+                    if tn_data_bsc_info.link_file_crt_yn.lower() == 'y' or dtst_cd == 'data917' or\
+                        (tn_data_bsc_info.link_clct_mthd_dtl_cd.lower() == 'on_file' and tn_data_bsc_info.pvdr_site_cd.lower() == 'ps00010'):  # 경기도BMS시스템_SHP, kosis_download
+                        # 로그 업데이트
+                        select_log_info_stmt_update = get_select_stmt(None, "update", file_path, pvdr_sou_data_pvsn_stle, None, "send")
+                        for dict_row in conn.execute(select_log_info_stmt_update).all():
+                            th_data_clct_mastr_log_update = ThDataClctMastrLog(**dict_row)
+                            tn_clct_file_info_update = get_file_info(th_data_clct_mastr_log_update.clct_log_sn, conn)
+                            CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info_update, session, th_data_clct_mastr_log_update, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_COMP, CONST.MSG_FILE_STRGE_SEND_COMP, "n")
+                            if th_data_clct_mastr_log_update.dtst_cd in {'data4', 'data799', 'data31', 'data855'}:
+                                CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info_update, session, th_data_clct_mastr_log_update, CONST.STEP_DW_LDADNG, CONST.STTS_COMP, CONST.MSG_DW_LDADNG_COMP, "n")
+                    else:
+                        file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_")
+                        # tn_clct_file_info 수집파일정보 set
+                        tn_clct_file_info = CommonUtil.set_file_info(TnClctFileInfo(), th_data_clct_mastr_log, file_name, None, tn_data_bsc_info.link_file_extn, None, None)
 
+                        # 로그 업데이트
+                        th_data_clct_mastr_log = ThDataClctMastrLog(**dict_row)
+                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_COMP, CONST.MSG_FILE_STRGE_SEND_COMP, "n")
                 except Exception as e:
+                    if tn_data_bsc_info.link_file_crt_yn.lower() == 'y' or dtst_cd == 'data917' or\
+                        (tn_data_bsc_info.link_clct_mthd_dtl_cd.lower() == 'on_file' and tn_data_bsc_info.pvdr_site_cd.lower() == 'ps00010'):  # 경기도BMS시스템_SHP, kosis_download
+                        # 로그 업데이트
+                        select_log_info_stmt_update = get_select_stmt(None, "update", file_path, pvdr_sou_data_pvsn_stle, None, "send")
+                        for dict_row in conn.execute(select_log_info_stmt_update).all():
+                            th_data_clct_mastr_log_update = ThDataClctMastrLog(**dict_row)
+                            tn_clct_file_info_update = get_file_info(th_data_clct_mastr_log_update.clct_log_sn, conn)
+                            CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info_update, session, th_data_clct_mastr_log_update, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_ERROR, CONST.MSG_FILE_STRGE_SEND_ERROR_MOVE, "n")
+                    else:
+                        file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_")
+                        # 로그 업데이트
+                        th_data_clct_mastr_log = ThDataClctMastrLog(**dict_row)
+                        # tn_clct_file_info 수집파일정보 set
+                        tn_clct_file_info = CommonUtil.set_file_info(TnClctFileInfo(), th_data_clct_mastr_log, file_name, None, tn_data_bsc_info.link_file_extn, None, None)
+                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_ERROR, CONST.MSG_FILE_STRGE_SEND_ERROR_MOVE, "n")
                     logging.error(f"move_file_to_hadoop Exception::: {e}")
-                    # 에러 발생 시 로그 업데이트
-                    select_log_info_stmt_update = get_select_stmt(None, "update", file_path, tn_data_bsc_info.pvdr_sou_data_pvsn_stle, None, "send")
-                    for dict_row in conn.execute(select_log_info_stmt_update).all():
-                        th_data_clct_mastr_log_update = ThDataClctMastrLog(**dict_row)
-                        tn_clct_file_info_update = get_file_info(th_data_clct_mastr_log_update.clct_log_sn, conn)
-                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info_update, session, th_data_clct_mastr_log_update, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_ERROR, CONST.MSG_FILE_STRGE_SEND_ERROR_MOVE, "n")
-                    raise e
-
-            if dict_row is None:
-                logging.info(f"move_file_to_hadoop ::: 전송 대상 없음")
+        if dict_row == None:
+            logging.info(f"move_file_to_hadoop ::: 하둡 전송 대상 조회 대상없음")
 
     def get_bsc_info(dtst_cd, clct_data_nm, clct_log_sn, conn):
         """
@@ -507,6 +525,7 @@ def csv_to_dw_hadoop():
                     AND link_ntwk_otsd_insd_se = '외부'
                     AND (b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_WORK_CHECK}' OR b.stts_msg = '{CONST.MSG_FILE_STRGE_SEND_ERROR_MOVE}')
                 """
+        
         select_stmt = f'''
                             SELECT
                                 {distinct_stmt} b.*
@@ -523,48 +542,6 @@ def csv_to_dw_hadoop():
                                 {update_log_stmt}
                                 {union_stmt}
                         '''
-
-        # select_stmt = f'''
-        #                 select 
-        #                     ( ARRAY_AGG(clct_log_sn order by clct_log_sn desc) )[1] as clct_log_sn
-        #                 , dtst_cd
-        #                 , ( ARRAY_AGG(dtst_dtl_cd order by clct_log_sn desc) )[1] as dtst_dtl_cd
-        #                 , ( ARRAY_AGG(clct_ymd order by clct_log_sn desc) )[1] as clct_ymd
-        #                 , ( ARRAY_AGG(clct_data_nm order by clct_log_sn desc) )[1] as clct_data_nm
-        #                 , data_crtr_pnttm
-        #                 , ( ARRAY_AGG(reclect_flfmt_nmtm order by clct_log_sn desc) )[1] as reclect_flfmt_nmtm
-        #                 , ( ARRAY_AGG(step_se_cd order by clct_log_sn desc) )[1] as step_se_cd
-        #                 , ( ARRAY_AGG(stts_cd order by clct_log_sn desc) )[1] as stts_cd
-        #                 , ( ARRAY_AGG(stts_dt order by clct_log_sn desc) )[1] as stts_dt
-        #                 , ( ARRAY_AGG(stts_msg order by clct_log_sn desc) )[1] as stts_msg
-        #                 , ( ARRAY_AGG(crt_dt order by clct_log_sn desc) )[1] as crt_dt
-        #                 , ( ARRAY_AGG(dw_rcrd_cnt order by clct_log_sn desc) )[1] as dw_rcrd_cnt
-        #                 , ( ARRAY_AGG(creatr_id order by clct_log_sn desc) )[1] as creatr_id
-        #                 , ( ARRAY_AGG(creatr_nm order by clct_log_sn desc) )[1] as creatr_nm
-        #                 , ( ARRAY_AGG(creatr_dept_nm order by clct_log_sn desc) )[1] as creatr_dept_nm
-        #                 , ( ARRAY_AGG(estn_field_one order by clct_log_sn desc) )[1] as estn_field_one
-        #                 , ( ARRAY_AGG(estn_field_two order by clct_log_sn desc) )[1] as estn_field_two
-        #                 , ( ARRAY_AGG(estn_field_three order by clct_log_sn desc) )[1] as estn_field_three
-        #                 , ( ARRAY_AGG(link_file_sprtr order by clct_log_sn desc) )[1] as link_file_sprtr
-        #                 from (
-        #                         SELECT
-        #                             {distinct_stmt} b.*
-        #                         FROM tn_data_bsc_info a, th_data_clct_mastr_log b {from_stmt}
-        #                         WHERE 1=1 
-        #                             AND a.dtst_cd = b.dtst_cd
-        #                             and a.dtst_dtl_cd  = b.dtst_dtl_cd 
-        #                             AND LOWER(a.use_yn) = 'y'
-        #                             AND LOWER(a.link_clct_mthd_dtl_cd) in ('on_file', 'open_api', 'esb', 'rdb', 'sftp','tcp')
-        #                             AND LOWER(a.link_file_extn) IN ('csv', 'xls', 'zip')
-        #                             AND LOWER(a.pvdr_inst_cd) != 'pi00011'
-        #                             {where_stmt}
-        #                             {link_ntwk_extrl_inner_se_stmt}
-        #                             {update_log_stmt}
-        #                             {union_stmt}
-        #                     ) t1	
-        #                 group by dtst_cd, data_crtr_pnttm
-                                    
-        #                 '''
 
         select_stmt = ' '.join(select_stmt.split())
         logging.info(f"select_stmt::: {select_stmt}")
@@ -723,8 +700,7 @@ def csv_to_dw_hadoop():
                     dw_column_dict = {}
                     for dict_row in conn.execute(get_data_type_stmt).all():
                         dw_column_dict[dict_row[1]] = dict_row[2]
-
-                    print("")                
+                
                     # 파일 컬럼명
                     file_column = pd.read_csv(full_file_name, sep= th_data_clct_mastr_log.link_file_sprtr, low_memory = False).columns.str.lower()  # 소문자로 변경
                     lists_column_info.append({

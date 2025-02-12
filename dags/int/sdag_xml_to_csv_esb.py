@@ -55,7 +55,6 @@ def xml_to_csv_esb():
                                 AND link_ntwk_otsd_insd_se = '내부'
                                 AND LOWER(dtst_cd) = 'data675'
                                 and lower(dtst_dtl_cd) != 'data675_1'
-
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
@@ -290,7 +289,7 @@ def xml_to_csv_esb():
                         # 비식별화된 데이터 로깅
                         #logging.info(f"비식별화된 dutyId: {item['dutyId']}, dutyName: {item['dutyName']}")
                         
-                 # 신문고민원_신청 데이터 비식별 처리 (cellPhone    linePhone    birthDate    sex)
+                # 신문고민원_신청 데이터 비식별 처리 (cellPhone    linePhone    birthDate    sex)
                 if dtst_se_val == 'Petition': 
                     for item in new_result_json:
                         logging.info(f"Petitioner_cellPhone: {item['Petitioner_cellPhone']}") 

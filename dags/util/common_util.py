@@ -40,10 +40,10 @@ class CommonUtil:
                     tn_data_bsc_info = TnDataBscInfo(**dict_row)
                     dtst_cd = tn_data_bsc_info.dtst_cd.lower()
 
-                    # if dtst_cd == 'data650':  # 한국천문연구원_특일_정보
-                    #     data_crtr_pnttm = CommonUtil.set_data_crtr_pnttm(tn_data_bsc_info.link_clct_cycle_cd, data_interval_start.add(years=1))
-                    # else:
-                    data_crtr_pnttm = CommonUtil.set_data_crtr_pnttm(tn_data_bsc_info.link_clct_cycle_cd, data_interval_start)
+                    if dtst_cd == 'data650':  # 한국천문연구원_특일_정보
+                        data_crtr_pnttm = CommonUtil.set_data_crtr_pnttm(tn_data_bsc_info.link_clct_cycle_cd, data_interval_start.add(months=1))
+                    else:
+                        data_crtr_pnttm = CommonUtil.set_data_crtr_pnttm(tn_data_bsc_info.link_clct_cycle_cd, data_interval_start)
 
                     if dtst_cd in {"data762", "data763"}:  # 부서정보, 직원정보 예외
                         file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_")

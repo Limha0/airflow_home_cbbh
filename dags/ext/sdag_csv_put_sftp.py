@@ -61,6 +61,7 @@ def sdag_5min_put_sftp():
                                 AND b.clct_ymd != '{data_interval_start}'
                             ORDER BY b.clct_log_sn
                             '''
+        logging.info(f"select_log_info_stmt !!!!!::: {select_log_info_stmt}")
         try:
             collect_data_list = CommonUtil.set_fail_info(session, select_log_info_stmt, kwargs)
         except Exception as e:    

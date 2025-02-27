@@ -59,6 +59,7 @@ def api_to_csv_ehojo():
                                 AND LOWER(dtst_cd) != 'data1051'-- 실국코드 제외
                             ORDER BY sn
                             '''
+        logging.info(f"select_bsc_info_stmt!!!!! : {select_bsc_info_stmt}")
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)

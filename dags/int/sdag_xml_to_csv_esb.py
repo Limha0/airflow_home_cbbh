@@ -56,6 +56,7 @@ def xml_to_csv_esb():
                                 AND LOWER(dtst_cd) = 'data675'
                                 and lower(dtst_dtl_cd) != 'data675_1'
                             '''
+        logging.info(f"select_bsc_info_stmt!!!!! : {select_bsc_info_stmt}")
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
@@ -345,7 +346,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2024,11,18,15,00),
+        execution_date=datetime(2025,2,21,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

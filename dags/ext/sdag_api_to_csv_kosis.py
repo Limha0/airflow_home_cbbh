@@ -1,7 +1,7 @@
 import logging
 import urllib3
 
-from pendulum import datetime, from_format
+from pendulum import datetime, from_format,now
 from airflow.decorators import dag, task
 from util.common_util import CommonUtil
 from dto.tn_data_bsc_info import TnDataBscInfo
@@ -17,8 +17,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 @dag(
     dag_id="sdag_api_to_csv_kosis",
-    schedule="5 0 28 * *",
-    start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
+    schedule="5 0 7,21 * *",
+    start_date=datetime(2024, 2, 10, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
     render_template_as_native_obj=True,
@@ -54,16 +54,31 @@ def api_to_csv_kosis():
                                     AND LOWER(link_clct_mthd_dtl_cd) = 'open_api'
                                     AND LOWER(link_clct_cycle_cd) = 'month'
                                     AND link_ntwk_otsd_insd_se = '외부'
-                                    AND LOWER(pvdr_site_cd) = 'ps00010' -- 국가통계포털
+                                    AND LOWER(pvdr_site_cd) = 'ps00010' -- 국가통계포털(40)
                                 ORDER BY sn
                                 '''
-        data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul").set(day=1)  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
-        data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
+        data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul").add(months=-1).set(day=1)  # local test
+        data_interval_end = datetime(2025, 2, 21, tz="Asia/Seoul")  # local test
+        # data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul").set(day=1)  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
+        # data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
+        logging.info(f"data_interval_start: {data_interval_start}, data_interval_end: {data_interval_end}")
+        logging.info(f"now : {now()}")
+
+        # 20250219 데이터 수집 2번으로 변경
+        if now().strftime("%d") == '21':
+            data_interval_start = now().add(months=-1) # 2025-01-19T16:21:03
+            # data_interval_end = now().replace(day=7)# 2025-01-19T16:21:03.
+            logging.info(f"data_interval_start222222: {data_interval_start}, data_interval_end222222: {data_interval_end}")
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
         if collect_data_list == []:
             logging.info(f"select_collect_data_fail_info ::: 수집 대상없음 프로그램 종료")
             raise AirflowSkipException()
         return collect_data_list
+        # collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
+        # if collect_data_list == []:
+        #     logging.info(f"select_collect_data_fail_info ::: 수집 대상없음 프로그램 종료")
+        #     raise AirflowSkipException()
+        # return collect_data_list
 
     @task
     def create_directory(collect_data_list, **kwargs):
@@ -361,7 +376,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2023,12,28,15,00),
+        execution_date=datetime(2025,2,19,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

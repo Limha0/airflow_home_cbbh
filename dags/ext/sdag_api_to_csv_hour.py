@@ -57,6 +57,7 @@ def api_to_csv_hour():
         if now().strftime("%H") == '00':
             data_interval_start = now().add(days=-1)
             data_interval_end = now().add(days=-1)
+            # logging.info(f"data_interval_start222222: {data_interval_start}, data_interval_end222222: {data_interval_end}")
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
         if collect_data_list == []:
             logging.info(f"select_collect_data_fail_info ::: 수집 대상없음 프로그램 종료")

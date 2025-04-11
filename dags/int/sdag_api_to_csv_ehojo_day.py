@@ -64,7 +64,7 @@ def api_to_csv_ehojo():
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
         if collect_data_list == []:
-            logging.info(f"select_collect_data_fail_info ::: 수집 대상없음 프로그램 종료")
+            logging.info(f"select_collect_data_fail_info ::: 수집 대상없음 프로그램 종료 - AirflowSkipException 발생 예정")
             raise AirflowSkipException()
         return collect_data_list
 
@@ -92,6 +92,8 @@ def api_to_csv_ehojo():
             params: tn_data_bsc_info, th_data_clct_mastr_log, tn_clct_file_info, file_path
             return: file_size
             """
+            logging.info("== call_url task 시작 ==")  # ✅ 무조건 로그 찍히게 추가
+
             import requests
             import os
             import time

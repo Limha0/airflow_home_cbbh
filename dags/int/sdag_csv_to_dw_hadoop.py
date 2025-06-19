@@ -122,37 +122,50 @@ def csv_to_dw_hadoop():
                 FileUtil.decrypt_file(full_file_path, pvdr_site_nm, encrypt_key, pvdr_sou_data_pvsn_stle)
                 FileUtil.unzip_file(full_file_path, pvdr_site_nm, pvdr_sou_data_pvsn_stle)
                 
-                if tn_data_bsc_info.link_file_crt_yn.lower() == 'y' or dtst_cd == 'data917' or\
-                        (tn_data_bsc_info.link_clct_mthd_dtl_cd.lower() == 'on_file' and tn_data_bsc_info.pvdr_site_cd.lower() == 'ps00010'):  # 경기도BMS시스템_SHP, kosis_download
-                    # 로그 업데이트
-                    select_log_info_stmt = get_select_stmt(None, "update", file_path, pvdr_sou_data_pvsn_stle, "ext", "unzip")
-                    with session.begin() as conn:
-                        for dict_row in conn.execute(select_log_info_stmt).all():
-                            th_data_clct_mastr_log_update = ThDataClctMastrLog(**dict_row)
-                            tn_clct_file_info_update = get_file_info(th_data_clct_mastr_log_update.clct_log_sn, conn)
-                            CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info_update, session, th_data_clct_mastr_log_update, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_WORK, CONST.MSG_FILE_STRGE_SEND_WORK_UNZIP, "n") # 압축해제 정상 작동 뒤에, 복호화 대상 조회 시작
-                else:
-                    # 로그 업데이트
-                    th_data_clct_mastr_log = ThDataClctMastrLog(**ext_data_dict['th_data_clct_mastr_log'])
-                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_WORK, CONST.MSG_FILE_STRGE_SEND_WORK_UNZIP, "n")
-                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_WORK, CONST.MSG_FILE_STRGE_SEND_WORK_CHECK, "n")  # 최종경로 확인 건너뛰고 스토리지 전송하기 위해 로그 업데이트
+                # ✅ 압축 해제 후 결과 파일이 실제로 있는지 확인
+                extract_dir = full_file_path.replace(".zip", "")
+                file_found = False
+                for f in os.listdir(extract_dir):
+                    if f.endswith(".csv") and "_sample.csv" not in f:
+                        file_found = True
+                        logging.info(f"압축해제된 파일 확인됨: {f}")
+                        break
+                if not file_found:
+                    raise FileNotFoundError(f"압축해제 후 .csv 파일을 찾을 수 없습니다: {extract_dir}")
+
+                with session.begin() as conn:
+                    if tn_data_bsc_info.link_file_crt_yn.lower() == 'y' or dtst_cd == 'data917' or\
+                            (tn_data_bsc_info.link_clct_mthd_dtl_cd.lower() == 'on_file' and tn_data_bsc_info.pvdr_site_cd.lower() == 'ps00010'):  # 경기도BMS시스템_SHP, kosis_download
+                        # 로그 업데이트
+                        select_log_info_stmt = get_select_stmt(None, "update", file_path, pvdr_sou_data_pvsn_stle, "ext", "unzip")
+                        with session.begin() as conn:
+                            for dict_row in conn.execute(select_log_info_stmt).all():
+                                th_data_clct_mastr_log_update = ThDataClctMastrLog(**dict_row)
+                                tn_clct_file_info_update = get_file_info(th_data_clct_mastr_log_update.clct_log_sn, conn)
+                                CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info_update, session, th_data_clct_mastr_log_update, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_WORK, CONST.MSG_FILE_STRGE_SEND_WORK_UNZIP, "n") # 압축해제 정상 작동 뒤에, 복호화 대상 조회 시작
+                    else:
+                        # 로그 업데이트
+                        th_data_clct_mastr_log = ThDataClctMastrLog(**ext_data_dict['th_data_clct_mastr_log'])
+                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_WORK, CONST.MSG_FILE_STRGE_SEND_WORK_UNZIP, "n")
+                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_WORK, CONST.MSG_FILE_STRGE_SEND_WORK_CHECK, "n")  # 최종경로 확인 건너뛰고 스토리지 전송하기 위해 로그 업데이트
             except Exception as e:
-                if tn_data_bsc_info.link_file_crt_yn.lower() == 'y' or dtst_cd == 'data917' or\
-                        (tn_data_bsc_info.link_clct_mthd_dtl_cd.lower() == 'on_file' and tn_data_bsc_info.pvdr_site_cd.lower() == 'ps00010'):  # 경기도BMS시스템_SHP, kosis_download
-                    # 로그 업데이트
-                    select_log_info_stmt = get_select_stmt(None, "update", file_path, pvdr_sou_data_pvsn_stle, "ext", "unzip")
-                    with session.begin() as conn:
-                        for dict_row in conn.execute(select_log_info_stmt).all():
-                            th_data_clct_mastr_log_update = ThDataClctMastrLog(**dict_row)
-                            tn_clct_file_info_update = get_file_info(th_data_clct_mastr_log_update.clct_log_sn, conn)
-                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info_update, session, th_data_clct_mastr_log_update, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_ERROR, CONST.MSG_FILE_STRGE_SEND_ERROR_UNZIP, "n")
-                else:
-                    # 로그 업데이트
-                    th_data_clct_mastr_log = ThDataClctMastrLog(**ext_data_dict['th_data_clct_mastr_log'])
-                    # tn_clct_file_info 수집파일정보 set
-                    file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_")
-                    tn_clct_file_info = CommonUtil.set_file_info(TnClctFileInfo(), th_data_clct_mastr_log, file_name, None, tn_data_bsc_info.link_file_extn, None, None)
-                    CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_ERROR, CONST.MSG_FILE_STRGE_SEND_ERROR_UNZIP, "n")
+                with session.begin() as conn:
+                    if tn_data_bsc_info.link_file_crt_yn.lower() == 'y' or dtst_cd == 'data917' or\
+                            (tn_data_bsc_info.link_clct_mthd_dtl_cd.lower() == 'on_file' and tn_data_bsc_info.pvdr_site_cd.lower() == 'ps00010'):  # 경기도BMS시스템_SHP, kosis_download
+                        # 로그 업데이트
+                        select_log_info_stmt = get_select_stmt(None, "update", file_path, pvdr_sou_data_pvsn_stle, "ext", "unzip")
+                        with session.begin() as conn:
+                            for dict_row in conn.execute(select_log_info_stmt).all():
+                                th_data_clct_mastr_log_update = ThDataClctMastrLog(**dict_row)
+                                tn_clct_file_info_update = get_file_info(th_data_clct_mastr_log_update.clct_log_sn, conn)
+                            CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info_update, session, th_data_clct_mastr_log_update, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_ERROR, CONST.MSG_FILE_STRGE_SEND_ERROR_UNZIP, "n")
+                    else:
+                        # 로그 업데이트
+                        th_data_clct_mastr_log = ThDataClctMastrLog(**ext_data_dict['th_data_clct_mastr_log'])
+                        # tn_clct_file_info 수집파일정보 set
+                        file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_")
+                        tn_clct_file_info = CommonUtil.set_file_info(TnClctFileInfo(), th_data_clct_mastr_log, file_name, None, tn_data_bsc_info.link_file_extn, None, None)
+                        CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_STRGE_SEND, CONST.STTS_ERROR, CONST.MSG_FILE_STRGE_SEND_ERROR_UNZIP, "n")
                 logging.error(f"unzip_decrypt_file Exception::: {e}")
 
     @task
@@ -262,11 +275,11 @@ def csv_to_dw_hadoop():
             active_namenode = None
             for line in lines:
                 if "namenode01.gbgs.go.kr:8020" in line and "active" in line:
-                    #active_namenode = "192.168.1.23"  #local test
-                    active_namenode = "172.25.20.91"
+                    active_namenode = "192.168.1.23"  #local test
+                    # active_namenode = "172.25.20.91"   #prod 
                 elif "namenode02.gbgs.go.kr:8020" in line and "active" in line:
-                    #active_namenode = "192.168.1.24"   #local test
-                    active_namenode = "172.25.20.92" 
+                    active_namenode = "192.168.1.24"   #local test
+                    # active_namenode = "172.25.20.92"    #prod
             
             logging.info(f"Active 네임노드: {active_namenode}")
             return active_namenode
@@ -344,24 +357,29 @@ def csv_to_dw_hadoop():
 
                     # 로컬에서 HDFS로 파일 전송
                     for file in os.listdir(before_file_path):
-                        print("#######before_file_path : "+ before_file_path)
-                        local_file_path = os.path.join(before_file_path, file)
-                        print("#######local_file_path : "+ local_file_path)
-                        #if file == file_name and os.path.isfile(local_file_path):
-                        # file_name과 일치하는 모든 CSV 파일을 찾음
-                        #if file.endswith('.csv') and os.path.isfile(local_file_path):
-                        # '_sample.csv'이 포함되지 않고, 확장자가 .csv인 모든 파일 전송
-                        if file.endswith('.csv') and '_sample.csv' not in file and os.path.isfile(local_file_path):
-                            print("#######file : "+ file)
-                          #  print("#######file_name : "+ file_name)
-                            hdfs_file_path = f"{hadoop_full_path}{file}"
-                            print("#######hdfs_file_path : "+ hdfs_file_path)
+                        try:
+                            print("#######before_file_path : "+ before_file_path)
+                            local_file_path = os.path.join(before_file_path, file)
+                            print("#######local_file_path : "+ local_file_path)
+                            #if file == file_name and os.path.isfile(local_file_path):
+                            # file_name과 일치하는 모든 CSV 파일을 찾음
+                            #if file.endswith('.csv') and os.path.isfile(local_file_path):
+                            # '_sample.csv'이 포함되지 않고, 확장자가 .csv인 모든 파일 전송
+                            if file.endswith('.csv') and '_sample.csv' not in file and os.path.isfile(local_file_path):
+                                print("#######file : "+ file)
+                            #  print("#######file_name : "+ file_name)
+                                hdfs_file_path = f"{hadoop_full_path}{file}"
+                                print("#######hdfs_file_path : "+ hdfs_file_path)
 
                             # HDFS에 파일 업로드
                             with open(local_file_path, 'rb') as f:
                                 client.write(hdfs_file_path, f, overwrite=True)
                                 #print("test : " ,client.write(hdfs_file_path, f, overwrite=True))
-                            logging.info(f"파일이 Active 네임노드로 전송됨: {hdfs_file_path}")
+                        except Exception as e:
+                            logging.error(f"{file} 전송 실패 ::: {e}")
+                            continue  # 다음 파일로 넘어감
+                        logging.info(f"파일이 Active 네임노드로 전송됨 ::: {hdfs_file_path}")
+
 
                     if tn_data_bsc_info.link_file_crt_yn.lower() == 'y' or dtst_cd == 'data917' or\
                         (tn_data_bsc_info.link_clct_mthd_dtl_cd.lower() == 'on_file' and tn_data_bsc_info.pvdr_site_cd.lower() == 'ps00010'):  # 경기도BMS시스템_SHP, kosis_download

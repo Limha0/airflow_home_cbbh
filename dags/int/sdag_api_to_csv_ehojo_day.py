@@ -59,7 +59,6 @@ def api_to_csv_ehojo():
                                 AND LOWER(dtst_cd) != 'data1051'-- 실국코드 제외
                             ORDER BY sn
                             '''
-        logging.info(f"select_bsc_info_stmt!!!!! : {select_bsc_info_stmt}")
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
         collect_data_list = CommonUtil.insert_collect_data_info(select_bsc_info_stmt, session, data_interval_start, data_interval_end, kwargs)
@@ -76,8 +75,8 @@ def api_to_csv_ehojo():
         return: file_path: tn_clct_file_info 테이블에 저장할 파일 경로
         """
         data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-        final_file_path = kwargs['var']['value'].root_collect_file_path  # local test
-        # final_file_path = kwargs['var']['value'].final_file_path
+        #final_file_path = kwargs['var']['value'].root_collect_file_path  # local test
+        final_file_path = kwargs['var']['value'].final_file_path
         file_path = CommonUtil.create_directory(collect_data_list, session, data_interval_end, final_file_path, "n")
         return file_path
     
@@ -93,7 +92,7 @@ def api_to_csv_ehojo():
             return: file_size
             """
             logging.info("== call_url task 시작 ==")  # ✅ 무조건 로그 찍히게 추가
-
+            
             import requests
             import os
             import time
@@ -178,7 +177,7 @@ def api_to_csv_ehojo():
                         # url 설정
                         headers = headers = {
                                 "API_KEY": api_key_ehojo
-                                ,"Content-Type": "application/json;charset=utf-8"
+                                ,"Content-Type": "application/jsoncharset=utf-8"
                                 }
                         data = EhojoUtil.set_url(dtst_cd, params_dict, repeat_num, pagd_no, interface_id, encrypt_key_ehojo, th_data_clct_mastr_log.data_crtr_pnttm)
 
@@ -300,3 +299,4 @@ if __name__ == "__main__":
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},
     )
+    

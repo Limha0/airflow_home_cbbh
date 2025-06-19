@@ -16,16 +16,20 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.exceptions import AirflowSkipException
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# 20250301~0531까지 재수집 csv생성하는 소스
+# csv가 3개 (신청/처리/접수) 생성되는데, 한 파일 안에 data_crtr_pnttm 동일하게 나옴
+# csv 파일 자체로 수동 수집할때 사용 (초기데이터 구축할때도 사용)
+
 @dag(
     dag_id="sdag_xml_to_csv_esb_only1",
     schedule="30 2 * * *",
-    start_date=datetime(2023, 9, 16, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
+    start_date=datetime(2025, 3, 1, tz="Asia/Seoul"),  # UI 에 KST 시간으로 표출하기 위한 tz 설정
     catchup=False,
     # render Jinja template as native Python object
     render_template_as_native_obj=True,
     tags=["xml_to_csv_only1", "day", "int"],
 )
-def xml_to_csv_esb_fail_retry():
+def xml_to_csv_esb_reprocess():
 
     # PostgresHook 객체 생성
     pg_hook = PostgresHook(postgres_conn_id='gsdpdb_db_conn')
@@ -60,8 +64,16 @@ def xml_to_csv_esb_fail_retry():
                                 AND LOWER(dtst_cd) = 'data675'
                                 and lower(dtst_dtl_cd) != 'data675_1'
                             '''
-        data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
-        data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
+        # data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
+        # data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
+
+        # 수집 대상 날짜 범위 제한 (2025-03-01 ~ 2025-05-31)
+        #20250618
+        data_interval_start = datetime(2025, 3, 1, tz="Asia/Seoul")
+        data_interval_end = datetime(2025, 5, 31, tz="Asia/Seoul")
+
+        logging.info(f"재수집 기간: {data_interval_start.strftime('%Y-%m-%d')} ~ {data_interval_end.strftime('%Y-%m-%d')}")
+
         collect_data_list = []
         try:
             with session.begin() as conn:
@@ -69,7 +81,8 @@ def xml_to_csv_esb_fail_retry():
                     tn_data_bsc_info = TnDataBscInfo(**dict_row)
 
                     data_crtr_pnttm = CommonUtil.set_data_crtr_pnttm(tn_data_bsc_info.link_clct_cycle_cd, data_interval_start)
-                    file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_") + "_2024"
+                    file_name = tn_data_bsc_info.dtst_nm.replace(" ", "_") + "_reprocess_202503_202505"
+                    logging.info(f"for dict_row in conn__안에서 찍히는거?__file_name::: {file_name}")
 
                     # th_data_clct_mastr_log set
                     th_data_clct_mastr_log = ThDataClctMastrLog()
@@ -93,6 +106,7 @@ def xml_to_csv_esb_fail_retry():
                                             , "th_data_clct_mastr_log": th_data_clct_mastr_log.as_dict()
                                             , "tn_clct_file_info": tn_clct_file_info.as_dict()
                                             })
+                logging.info(f"for dict_row in conn__밖에서 찍히는거?__file_name::: {file_name}")
         except Exception as e:
             logging.info(f"insert_collect_data_info Exception::: {e}")
             raise e
@@ -109,18 +123,26 @@ def xml_to_csv_esb_fail_retry():
             return: file_path: tn_clct_file_info 테이블에 저장할 파일 경로
             """
             
-            data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-            final_file_path = kwargs['var']['value'].final_file_path
+            # data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
+            data_interval_end = datetime(2025, 5, 31, tz="Asia/Seoul")
+            # final_file_path = kwargs['var']['value'].final_file_path
+            final_file_path = kwargs['var']['value'].root_final_file_path   #local test
+
+            logging.info(f"create_directory___data_interval_end::: {data_interval_end}")
+            logging.info(f"create_directory___final_file_path::: {final_file_path}")
+
             temp_list = []
             if isinstance(collect_data_list, list):  # list 인 경우
                 temp_list.extend(collect_data_list)
             else:  # dict 인 경우
                 temp_list.append(collect_data_list)
+
             for collect_data_dict in temp_list:
                 tn_data_bsc_info = TnDataBscInfo(**collect_data_dict['tn_data_bsc_info'])
 
                 # 파일 경로 설정
                 file_path, full_file_path = CommonUtil.set_file_path(final_file_path, data_interval_end, tn_data_bsc_info)
+
             try:
                 # 수집 폴더 경로 생성
                 os.makedirs(full_file_path, exist_ok=True)
@@ -138,17 +160,21 @@ def xml_to_csv_esb_fail_retry():
             return: file_size
             """
             import os
+            import re
             import shutil
             from util.call_url_util import CallUrlUtil
             from util.file_util import FileUtil
             from xml_to_dict import XMLtoDict
+            from datetime import datetime, timedelta
 
             th_data_clct_mastr_log = ThDataClctMastrLog(**collect_data_list['th_data_clct_mastr_log'])
             tn_data_bsc_info = TnDataBscInfo(**collect_data_list['tn_data_bsc_info'])
             tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
             # log_full_file_path = collect_data_list['log_full_file_path']
-            esb_file_path = kwargs['var']['value'].esb_file_path  # 원천 파일 경로
-            final_file_path = kwargs['var']['value'].final_file_path
+            # esb_file_path = kwargs['var']['value'].esb_file_path  # 원천 파일 경로
+            esb_file_path = kwargs['var']['value'].root_esb_file_path  # local test
+            # final_file_path = kwargs['var']['value'].final_file_path
+            root_final_file_path = kwargs['var']['value'].root_final_file_path  # local test
             # error_file_path = "/home/gsdpmng/data/error_file"  # 에러 파일 경로
 
             # 에러 파일 저장 경로 생성
@@ -157,83 +183,78 @@ def xml_to_csv_esb_fail_retry():
             dtst_cd = th_data_clct_mastr_log.dtst_cd.lower()
             pvdr_site_cd = tn_data_bsc_info.pvdr_site_cd.lower()
             pvdr_inst_cd = tn_data_bsc_info.pvdr_inst_cd.lower()
-
-            # data_interval_end = kwargs['data_interval_end'].in_timezone("Asia/Seoul")  # 실제 실행하는 날짜를 KST 로 설정
-            data_interval_end = from_format(th_data_clct_mastr_log.clct_ymd,'YYYYMMDD')
+            
+            #20250618
+            # 처리할 기간 설정 (2025.03.01 ~ 2025.05.31)
+            start_date = datetime(2025, 3, 1)
+            end_date = datetime(2025, 5, 31)
             
             header = True   # 파일 헤더 모드
             mode = "w"  # 파일 쓰기 모드 overwrite
             page_no = 1  # 현재 페이지
-            link_file_crt_yn = tn_data_bsc_info.link_file_crt_yn.lower()  # csv 파일 생성 여부
+            # link_file_crt_yn = tn_data_bsc_info.link_file_crt_yn.lower()  # csv 파일 생성 여부
             file_name = tn_clct_file_info.insd_file_nm + "." + tn_clct_file_info.insd_file_extn  # csv 파일명
             source_file_name = None  # 원천 파일명
-            full_file_path = final_file_path + file_path
+            # full_file_path = final_file_path + file_path
+            full_file_path = root_final_file_path + file_path   # local test
             full_file_name = full_file_path + file_name
             link_file_sprtr = tn_data_bsc_info.link_file_sprtr
-            file_size = 0   # 파일 사이즈
-            row_count = 0  # 행 개수
-            # file_exist = False  # 파일 존재 여부
 
-            for file in os.listdir(esb_file_path):
-                source_file_name = file
-                source_file_full_path = os.path.join(esb_file_path, source_file_name)
-                error_file_full_path = os.path.join(error_file_path, source_file_name)
+            #20250618
+            total_file_size = 0
+            total_row_count = 0
+            processed_files = []
+            total_result_count = 0
 
-                # 가능한 인코딩 목록 정의
-                encodings = ['utf-8', 'euc-kr', 'cp949']
-                xml_content = None
+            try:
+                # 처리 대상 날짜 범위 생성
+                current_date = start_date
+                target_dates = []
+                
+                while current_date <= end_date:
+                    target_dates.append(current_date.strftime("%Y%m%d"))
+                    current_date += timedelta(days=1)
+                logging.info(f"처리 대상 날짜 범위: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}")
+                logging.info(f"총 {len(target_dates)}개 날짜 대상")
+            
+            # finally:
+            #     logging.info("작업이 완료되었습니다.")      
 
-                for encoding in encodings:
-                    try:
-                        # 파일을 시도된 인코딩으로 읽음
-                        with open(os.path.join(esb_file_path, source_file_name), 'r', encoding=encoding) as f:
-                            xml_content = f.read()
-                        logging.info(f"Successfully read file {source_file_name} with encoding {encoding}.")
-                        break  # 성공적으로 읽었다면 루프 종료
-                    except UnicodeDecodeError:
-                        logging.warning(f"Encoding {encoding} failed for file {source_file_name}. Trying next...")
-                    except FileNotFoundError:
-                        logging.error(f"File not found: {os.path.join(esb_file_path, source_file_name)}")
-                        break
-                    except Exception as e:
-                        logging.error(f"Unexpected error while reading file {source_file_name}: {e}")
-                        break
-
-                # 파일 읽기가 실패한 경우 건너뛰기
-                # if xml_content is None:
-                #     logging.warning(f"Skipping file {source_file_name} as it could not be decoded with any attempted encoding.")
-                #     continue  # 다음 파일로 넘어가기
-                if xml_content is None:
-                    try:
-                        shutil.move(source_file_full_path, error_file_full_path)
-                        logging.warning(f"Moved failed file {source_file_name} to error directory {error_file_path}.")
-                    except Exception as e:
-                        logging.error(f"Failed to move file {source_file_name} to error directory: {e}")
-                    continue  # 다음 파일로 넘어가기
-
-
-                # XML 내용 일부를 로깅 (xml_content가 None이 아닌 경우에만)
-                logging.info(f"First 300 characters of XML content in {source_file_name}: {xml_content[:300]}")
-
-                # XML 파싱
                 try:
-                    json_data = XMLtoDict().parse(xml_content)
-                    logging.info(f"Successfully parsed XML file: {source_file_name}")
+                    all_files = os.listdir(esb_file_path)
+                    logging.info(f"esb_file_path 내 전체 파일 개수: {len(all_files)}")
                 except Exception as e:
-                    logging.error(f"Error parsing XML file {source_file_name}: {e}")
-                    continue  # 파싱 실패 시 다음 파일로 넘어가기
+                    logging.error(f"esb_file_path 읽기 실패: {e}")
+                    raise Exception("원천 파일 경로를 읽을 수 없습니다.")
 
-                result = CallUrlUtil.read_json(json_data, pvdr_site_cd, pvdr_inst_cd, dtst_cd, tn_data_bsc_info.data_se_col_one)
-                result_json = result['result_json_array']
+                # 재수집 파일 패턴에 맞는 파일들 찾기
+                # 패턴: 숫자_YYYYMMDD.xml (예: 12341241_20250301.xml)
+                reprocess_pattern = re.compile(r'.*_(\d{8})\.xml$')
+                matching_files = []
 
-                dtst_se_val = {
-                    "국민신문고_신문고민원_신청" : "Petition",
-                    "국민신문고_신문고민원_접수" : "Receipt",
-                    "국민신문고_신문고민원_처리" : "Process" }.get(th_data_clct_mastr_log.clct_data_nm)
-                result_json = [item for item in result_json if item.get('dtst_se') == dtst_se_val]
+                logging.info("파일 패턴 매칭 시작...")
+                for file in all_files:
+                    match = reprocess_pattern.match(file)
+                    if match:
+                        file_date = match.group(1)  # YYYYMMDD 추출
+                        logging.info(f"패턴 매칭된 파일: {file}, 추출된 날짜: {file_date}")
+                        if file_date in target_dates:
+                            matching_files.append((file, file_date))
+                            logging.info(f"대상 기간에 포함된 파일: {file} (날짜: {file_date})")
+                    else:
+                        # 매칭되지 않은 파일도 로깅 (처음 몇 개만)
+                        if len([f for f in all_files if not reprocess_pattern.match(f)]) <= 5:
+                            logging.info(f"패턴 매칭되지 않은 파일: {file}")
+                            
+                logging.info(f"재수집 패턴에 맞는 파일 개수: {len(matching_files)}")
+                
+                if not matching_files:
+                    logging.warning("재수집 패턴에 맞는 파일이 없습니다.")
+                    raise AirflowSkipException("재수집 대상 파일 없음")
 
-
-               # 컬럼 존재하지않는 경우 예외 처리
+                # 날짜순으로 정렬
+                matching_files.sort(key=lambda x: x[1])
+                # DB 컬럼 정보 조회 (한 번만 실행)
                 get_data_column_stmt = f"""
                     SELECT column_name
                     FROM information_schema.columns
@@ -241,105 +262,193 @@ def xml_to_csv_esb_fail_retry():
                     AND column_name NOT IN ('data_crtr_pnttm','clct_sn','clct_pnttm','clct_log_sn','page_no')
                     ORDER BY ordinal_position
                 """
-                # json 결과 값이랑 db 컬럼이랑 비교해서 없는 컬럼들 데이터값은 None값으로 한 걸 추가해서 new json result 값으로 만든다음에 csv 로 만듦.
-                with session.begin() as conn:
-                    dw_column_dict = []  # DW 컬럼명
-                    for dict_row in conn.execute(get_data_column_stmt).all():
-                        dw_column_dict.append(dict_row[0])
-
-                new_result_json = []
-                for dict_value in result_json:
-                    new_dict = {}
-                    
-                    # dict_value의 키들을 소문자로 변환한 새로운 딕셔너리 생성
-                    for key, value in dict_value.items():
-                        if isinstance(value, dict):
-                            for sub_key, sub_value in value.items():
-                                new_key = f"{key}_{sub_key}".lower()
-                                new_dict[new_key] = sub_value
-                        else:
-                            new_dict[key.lower()] = value
-
-                    # 소문자로 변환한 딕셔너리로 누락된 컬럼을 체크하기 위해 lowercase_new_dict 생성
-                    lowercase_new_dict = {key.lower(): value for key, value in new_dict.items()}
-                    
-                    # dw_column_dict에서 누락된 컬럼을 new_dict에 추가
-                    for missing_column in dw_column_dict:
-                        if missing_column not in lowercase_new_dict and dtst_se_val != 'Process':
-                            # update_column에 대해 적절한 대소문자 형태로 지정
-                            update_column = {
-                                "cancel_date": "Cancel_date",
-                                "cancel_datetime": "Cancel_dateTime",
-                                "cancel_reason": "Cancel_reason",
-                                "expand_title": "Expand_title",
-                                "expand_reason": "Expand_reason",
-                                "satisfy_content": "Satisfy_Content",
-                                "satisfy_moreword": "Satisfy_moreWord",
-                                "satisfy_regdate": "Satisfy_regDate",
-                                "satisfy_regdatetime": "Satisfy_regDateTime"
-                            }.get(missing_column, missing_column)  # 매핑이 없으면 기본적으로 소문자로 추가
-
-                            new_dict[update_column] = None  # 누락된 컬럼을 None으로 추가
-
-                    # 누락된 컬럼이 모두 추가된 new_dict를 new_result_json에 포함
-                    new_result_json.append(new_dict)
-
-                result_size = len(new_result_json)
-
-                # 신문고민원_처리 데이터 비식별 처리
-                if dtst_se_val == 'Process':
-                    for item in new_result_json:
-                        item['dutyId'] = CallUrlUtil.anonymize(item.get('dutyId', ''))
-                        item['dutyName'] = CallUrlUtil.anonymize(item.get('dutyName', ''))
-
-                # 신문고민원_신청 - 데이터 비식별 처리 (cellPhone    linePhone    birthDate    sex)
-                if dtst_se_val == 'Petition': 
-                    for item in new_result_json:
-                        logging.info(f"Petitioner_cellPhone: {item['Petitioner_cellPhone']}") 
-                        item['Petitioner_cellPhone'] = CallUrlUtil.anonymize(item.get('Petitioner_cellPhone', ''))
-                        item['Petitioner_linePhone'] = CallUrlUtil.anonymize(item.get('Petitioner_linePhone', ''))
-                        item['Petitioner_birthDate'] = CallUrlUtil.anonymize(item.get('Petitioner_birthDate', ''))
-                        item['Petitioner_sex'] = CallUrlUtil.anonymize(item.get('Petitioner_sex', ''))
-                        logging.info(f"비식별화된 Petitioner_cellPhone: {item['Petitioner_cellPhone']}, Petitioner_sex: {item['Petitioner_sex']}")
-
-                # 데이터 존재 시
-                if result_size != 0:
-                    # csv 파일 생성
-                    CallUrlUtil.create_csv_file(link_file_sprtr, th_data_clct_mastr_log.data_crtr_pnttm, th_data_clct_mastr_log.clct_log_sn, full_file_path, file_name, new_result_json, header, mode, page_no)
-
-                row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)  # 행 개수 확인
-                if row_count != 0:
-                    logging.info(f"현재까지 파일 내 행 개수: {row_count}")
                 
-                # 파일 사이즈 확인
-                if os.path.exists(full_file_name):
-                    file_size = os.path.getsize(full_file_name)
-                logging.info(f"call_url file_size::: {file_size}")
+                with session.begin() as conn:
+                    dw_column_dict = [dict_row[0] for dict_row in conn.execute(get_data_column_stmt).all()]
 
-                logging.info(f"수집 끝")
-            #     if row_count == 0:
-            #         CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_COMP, CONST.MSG_CLCT_COMP_NO_DATA, "y")
-            #         raise AirflowSkipException()
-            #     else:
-            #         # tn_clct_file_info 수집파일정보
-            #         tn_clct_file_info = CommonUtil.set_file_info(TnClctFileInfo(), th_data_clct_mastr_log, tn_clct_file_info.insd_file_nm, file_path, tn_data_bsc_info.link_file_extn, file_size, None)
+                # 각 파일 처리
+                is_first_file = True
+                
+                for source_file_name, file_date in matching_files:
+                    logging.info(f"처리 중인 파일: {source_file_name} (날짜: {file_date})")
                     
-            #         CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_COMP, CONST.MSG_CLCT_COMP, "y")
-            #         if link_file_crt_yn == "y":
-            #             CommonUtil.update_file_info_table(session, th_data_clct_mastr_log, tn_clct_file_info, tn_clct_file_info.insd_file_nm, file_path, tn_clct_file_info.insd_file_extn, file_size)
-            #         CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_FILE_INSD_SEND, CONST.STTS_COMP, CONST.MSG_FILE_INSD_SEND_COMP_INT, "y")
-            # except Exception as e:
-            #     CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_CLCT, CONST.STTS_ERROR, CONST.MSG_CLCT_ERROR_CALL, "y")
-            #     logging.error(f"call_url Exception::: {e}")
-            #     raise e
-    
+                    try:
+                        # 파일 읽기 (다중 인코딩 시도)
+                        xml_content = None
+                        encodings = ['utf-8', 'euc-kr', 'cp949']
+                        
+                        for encoding in encodings:
+                            try:
+                                source_file_full_path = os.path.join(esb_file_path, source_file_name)
+                                
+                                with open(source_file_full_path, 'r', encoding=encoding) as f:
+                                    xml_content = f.read()
+                                logging.info(f"파일을 성공적으로 읽었습니다. 인코딩: {encoding}")
+                                break
+                            except UnicodeDecodeError:
+                                logging.warning(f"Encoding {encoding} failed for file {source_file_name}. Trying next...")
+                            except FileNotFoundError:
+                                logging.error(f"File not found: {source_file_full_path}")
+                                break
+                            except Exception as e:
+                                logging.error(f"Unexpected error while reading file {source_file_name}: {e}")
+                                break
+
+                        if xml_content is None:
+                            logging.error(f"XML 내용을 읽지 못했습니다: {source_file_name}")
+                            continue
+
+                        # XML 파싱
+                        try:
+                            json_data = XMLtoDict().parse(xml_content)
+                            logging.info(f"구문 분석 성공: {source_file_name}")
+                        except Exception as e:
+                            logging.error(f"Error parsing XML file {source_file_name}: {e}")
+                            continue
+
+                        # JSON 데이터 처리
+                        result = CallUrlUtil.read_json(json_data, pvdr_site_cd, pvdr_inst_cd, dtst_cd, tn_data_bsc_info.data_se_col_one)
+                        result_json = result['result_json_array']
+
+                        # 데이터 필터링
+                        dtst_se_val = {
+                            "국민신문고_신문고민원_신청": "Petition",
+                            "국민신문고_신문고민원_접수": "Receipt",
+                            "국민신문고_신문고민원_처리": "Process"
+                        }.get(th_data_clct_mastr_log.clct_data_nm)
+                        
+                        if dtst_se_val:
+                            result_json = [item for item in result_json if item.get('dtst_se') == dtst_se_val]
+
+                        # 컬럼 매핑 및 누락 컬럼 추가
+                        new_result_json = []
+                        for dict_value in result_json:
+                            new_dict = {}
+                            
+                            # 중첩된 딕셔너리 평탄화
+                            for key, value in dict_value.items():
+                                if isinstance(value, dict):
+                                    for sub_key, sub_value in value.items():
+                                        new_key = f'{key}_{sub_key}'
+                                        new_dict[new_key] = sub_value
+                                else:
+                                    new_dict[key] = value
+
+                            # 누락 컬럼 처리
+                            lowercase_new_dict = {key.lower(): value for key, value in new_dict.items()}
+                            
+                            for missing_column in dw_column_dict:
+                                if missing_column not in lowercase_new_dict and dtst_se_val != 'Process':
+                                    update_column = {
+                                        "cancel_date": "Cancel_date",
+                                        "cancel_datetime": "Cancel_dateTime",
+                                        "cancel_reason": "Cancel_reason",
+                                        "expand_title": "Expand_title",
+                                        "expand_reason": "Expand_reason",
+                                        "satisfy_content": "Satisfy_Content",
+                                        "satisfy_moreword": "Satisfy_moreWord",
+                                        "satisfy_regdate": "Satisfy_regDate",
+                                        "satisfy_regdatetime": "Satisfy_regDateTime"
+                                    }.get(missing_column, missing_column)
+                                    
+                                    new_dict[update_column] = None
+
+                            new_result_json.append(new_dict)
+
+                        result_size = len(new_result_json)
+                        logging.info(f"파일 {source_file_name}의 JSON 데이터 크기: {result_size}")
+
+                        if result_size == 0:
+                            logging.warning(f"파일 {source_file_name}: 처리할 데이터가 없습니다.")
+                            continue
+
+                        # 데이터 비식별 처리
+                        if dtst_se_val == 'Process':
+                            for item in new_result_json:
+                                item['dutyId'] = CallUrlUtil.anonymize(item.get('dutyId', ''))
+                                item['dutyName'] = CallUrlUtil.anonymize(item.get('dutyName', ''))
+
+                        if dtst_se_val == 'Petition':
+                            for item in new_result_json:
+                                item['Petitioner_cellPhone'] = CallUrlUtil.anonymize(item.get('Petitioner_cellPhone', ''))
+                                item['Petitioner_linePhone'] = CallUrlUtil.anonymize(item.get('Petitioner_linePhone', ''))
+                                item['Petitioner_birthDate'] = CallUrlUtil.anonymize(item.get('Petitioner_birthDate', ''))
+                                item['Petitioner_sex'] = CallUrlUtil.anonymize(item.get('Petitioner_sex', ''))
+
+                        # CSV 파일 생성 (첫 번째 파일은 overwrite, 이후는 append)
+                        current_mode = mode if is_first_file else "a"
+                        current_header = header if is_first_file else False
+                        
+                        CallUrlUtil.create_csv_file(
+                            link_file_sprtr, 
+                            th_data_clct_mastr_log.data_crtr_pnttm, 
+                            th_data_clct_mastr_log.clct_log_sn, 
+                            full_file_path, 
+                            file_name, 
+                            new_result_json, 
+                            current_header, 
+                            current_mode, 
+                            page_no
+                        )
+                        
+                        processed_files.append(source_file_name)
+                        total_result_count += result_size
+                        is_first_file = False
+                        
+                        logging.info(f"파일 {source_file_name} 처리 완료. 데이터 건수: {result_size}")
+
+                    except Exception as e:
+                        logging.error(f"파일 {source_file_name} 처리 중 오류: {e}")
+                        continue
+
+                # 최종 결과 확인
+                if os.path.exists(full_file_name):
+                    total_file_size = os.path.getsize(full_file_name)
+                    total_row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)
+                    
+                logging.info(f"=== 재수집 완료 ===")
+                logging.info(f"처리된 파일 개수: {len(processed_files)}")
+                logging.info(f"총 데이터 건수: {total_result_count}")
+                logging.info(f"최종 CSV 파일 크기: {total_file_size} bytes")
+                logging.info(f"최종 CSV 행 개수: {total_row_count}")
+                logging.info(f"처리된 파일 목록: {processed_files}")
+
+                if total_row_count == 0:
+                    logging.warning("최종 CSV 파일에 데이터가 없습니다.")
+                    raise AirflowSkipException("생성된 데이터 없음")
+
+                # 파일 정보 업데이트 (필요한 경우)
+                tn_clct_file_info = CommonUtil.set_file_info(
+                    TnClctFileInfo(), 
+                    th_data_clct_mastr_log, 
+                    tn_clct_file_info.insd_file_nm, 
+                    file_path, 
+                    tn_data_bsc_info.link_file_extn, 
+                    total_file_size, 
+                    None
+                )
+
+                return {
+                    "file_size": total_file_size,
+                    "row_count": total_row_count,
+                    "processed_files": processed_files,
+                    "total_result_count": total_result_count
+                }
+
+            except AirflowSkipException:
+                raise
+            except Exception as e:
+                logging.error(f"call_url Exception: {e}")
+                raise e
+
         file_path = create_directory(collect_data_list)
-        file_path >> call_url(collect_data_list, file_path)
+        result = call_url(collect_data_list, file_path)
+        return result
     
     collect_data_list = insert_collect_data_info()
-    call_url_process.expand(collect_data_list = collect_data_list)
+    call_url_process.expand(collect_data_list=collect_data_list)
     
-dag_object = xml_to_csv_esb_fail_retry()
+dag_object = xml_to_csv_esb_reprocess()
 
 # only run if the module is the main program
 if __name__ == "__main__":
@@ -348,7 +457,7 @@ if __name__ == "__main__":
     dtst_cd = ""
 
     dag_object.test(
-        execution_date=datetime(2024,1,11,15,00),
+        execution_date=datetime(2025,6,11,15,00),
         conn_file_path=conn_path,
         # variable_file_path=variables_path,
         # run_conf={"dtst_cd": dtst_cd},

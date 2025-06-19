@@ -19,7 +19,8 @@ local_test_conn:
 gsdpdb_db_conn:
     conn_id: gsdpdb_db_conn
     conn_type: Postgres
-    host: 172.31.147.106
+    # host: 172.31.147.106
+    host: 192.168.1.25 # 개발서버 (DB서버)
     schema: gsdpdb
     login: gsdpadmin
     password: gsdpmng01!@
@@ -28,7 +29,8 @@ gsdpdb_db_conn:
 ssh_inner_conn:
     conn_id: ssh_inner_conn
     conn_type: SFTP
-    host: 192.168.1.32
+    # host: 192.168.1.32
+    host: 192.168.1.26  # 개발서버 (내부수집서버)
     login: gsdpmng
     password: gsdp2024!@#$
     port: 40022
@@ -36,7 +38,8 @@ ssh_inner_conn:
 ssh_db_conn:
     conn_id: ssh_db_conn
     conn_type: SFTP
-    host: 192.168.1.31
+    # host: 192.168.1.31
+    host: 192.168.1.25 # 개발서버 (DB서버)
     login: gsdpmng
     password: gsdp2024!@#$
     port: 40022

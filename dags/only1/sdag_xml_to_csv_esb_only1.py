@@ -368,6 +368,7 @@ def xml_to_csv_esb_reprocess():
                                 item['dutyId'] = CallUrlUtil.anonymize(item.get('dutyId', ''))
                                 item['dutyName'] = CallUrlUtil.anonymize(item.get('dutyName', ''))
 
+                        # 신문고민원_신청 데이터 비식별 처리 (cellPhone    linePhone    birthDate    sex)
                         if dtst_se_val == 'Petition':
                             for item in new_result_json:
                                 item['Petitioner_cellPhone'] = CallUrlUtil.anonymize(item.get('Petitioner_cellPhone', ''))
@@ -375,21 +376,64 @@ def xml_to_csv_esb_reprocess():
                                 item['Petitioner_birthDate'] = CallUrlUtil.anonymize(item.get('Petitioner_birthDate', ''))
                                 item['Petitioner_sex'] = CallUrlUtil.anonymize(item.get('Petitioner_sex', ''))
 
-                        # CSV 파일 생성 (첫 번째 파일은 overwrite, 이후는 append)
-                        current_mode = mode if is_first_file else "a"
-                        current_header = header if is_first_file else False
+                        # 파일별 data_crtr_pnttm 설정 (파일 날짜 기준)
+                        file_data_crtr_pnttm = file_date  # YYYYMMDD 형태     
+
+                        # 각 파일별로 clct_sn을 1부터 시작하여 데이터 준비
+                        processed_data = []
+
+                        for item in new_result_json:
+                            # 기존 데이터에서 모든 메타 컬럼 제거
+                            clean_item = {k: v for k, v in item.items() 
+                                        if k not in ['clct_sn', 'data_crtr_pnttm', 'clct_pnttm', 'clct_log_sn', 'page_no']}
+                            processed_data.append(clean_item)
                         
-                        CallUrlUtil.create_csv_file(
-                            link_file_sprtr, 
-                            th_data_clct_mastr_log.data_crtr_pnttm, 
-                            th_data_clct_mastr_log.clct_log_sn, 
-                            full_file_path, 
-                            file_name, 
-                            new_result_json, 
-                            current_header, 
-                            current_mode, 
-                            page_no
-                        )
+                        # CSV 파일 직접 생성 (한글 인코딩 문제 해결)
+                        import csv
+                        
+                        if is_first_file:
+                            # 첫 번째 파일: 헤더와 함께 새로 생성
+                            with open(full_file_name, 'w', newline='', encoding='utf-8-sig') as csvfile:
+                                if processed_data:
+                                    # 컬럼 순서: clct_sn + 실제데이터 + 메타컬럼들
+                                    data_fields = list(processed_data[0].keys())  # 실제 데이터 컬럼들
+                                    fieldnames = ['clct_sn'] + data_fields + ['data_crtr_pnttm', 'clct_pnttm', 'clct_log_sn', 'page_no']
+                                    
+                                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=link_file_sprtr)
+                                    writer.writeheader()
+                                    
+                                    # 각 행에 clct_sn과 메타 컬럼들 추가하여 쓰기
+                                    for idx, row in enumerate(processed_data, 1):
+                                        complete_row = {
+                                            'clct_sn': idx,  # 파일별로 1부터 시작
+                                            **row,  # 실제 데이터
+                                            'data_crtr_pnttm': file_data_crtr_pnttm,  # 파일별 날짜
+                                            'clct_pnttm': now(tz="UTC").strftime("%Y%m%d%H%M%S"),
+                                            'clct_log_sn': th_data_clct_mastr_log.clct_log_sn,
+                                            'page_no': 1
+                                        }
+                                        writer.writerow(complete_row)
+                        else:
+                            # 이후 파일들: 헤더 없이 append
+                            with open(full_file_name, 'a', newline='', encoding='utf-8-sig') as csvfile:
+                                if processed_data:
+                                    # 동일한 컬럼 순서 사용
+                                    data_fields = list(processed_data[0].keys())  # 실제 데이터 컬럼들
+                                    fieldnames = ['clct_sn'] + data_fields + ['data_crtr_pnttm', 'clct_pnttm', 'clct_log_sn', 'page_no']
+                                    
+                                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=link_file_sprtr)
+                                    
+                                    # 각 행에 clct_sn과 메타 컬럼들 추가하여 쓰기
+                                    for idx, row in enumerate(processed_data, 1):
+                                        complete_row = {
+                                            'clct_sn': idx,  # 파일별로 1부터 시작
+                                            **row,  # 실제 데이터
+                                            'data_crtr_pnttm': file_data_crtr_pnttm,  # 파일별 날짜
+                                            'clct_pnttm': now(tz="UTC").strftime("%Y%m%d%H%M%S"),
+                                            'clct_log_sn': th_data_clct_mastr_log.clct_log_sn,
+                                            'page_no': 1
+                                        }
+                                        writer.writerow(complete_row)
                         
                         processed_files.append(source_file_name)
                         total_result_count += result_size

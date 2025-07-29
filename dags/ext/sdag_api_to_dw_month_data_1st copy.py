@@ -396,12 +396,9 @@ def api_dw_month_data_1st():
 
                                     elif ext in [".xlsx", ".xls"]:
                                         try:
-                                            df = pd.read_excel(BytesIO(download_resp.content), engine='openpyxl' if ext == ".xlsx" else None)
-                                            if df.empty:
-                                                logging.warning("⚠ XLSX 파일 비어 있음")
-                                            else:
-                                                df.to_csv(csv_path, index=False, encoding="utf-8-sig")
-                                                logging.info(f"✅ XLSX ➜ CSV 저장 완료: {csv_path}")
+                                            # XLSX 파일은 시각 요소가 포함된 문서로 판단되어
+                                            # CSV 변환 생략하고 원본만 유지
+                                            logging.info(f"✅ XLSX 파일은 시각 요소가 포함된 문서로 판단되어 변환 생략: {raw_path}")
                                         except Exception as e:
                                             null_atchfile_count += 1
                                             logging.warning(f"❌ XLSX ➜ CSV 변환 실패: {e}")

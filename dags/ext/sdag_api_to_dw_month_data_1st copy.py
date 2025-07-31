@@ -152,7 +152,7 @@ def call_additional_api_and_save_csv(row, output_dir, null_atchfile_count, valid
                 else:
                     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
                     logging.info(f"✅ XLSX ➜ CSV 저장 완료: {csv_path}")
-                    valid_atchfile_count[0] += 1
+                    # valid_atchfile_count[0] += 1
 
             except Exception as e:
                 null_atchfile_count[0] += 1
@@ -406,9 +406,14 @@ def api_dw_month_data_1st():
                             data_se_val_two = tn_data_bsc_info.pvdr_data_se_vl_two.lower() if tn_data_bsc_info.pvdr_data_se_vl_two else ''
 
                             # file-data-list 타입인 경우 추가 API 호출 및 파일 다운로드
-                            if data_se_val_two == "file-data-list" or data_se_val_two == "standard-data-list":
+                            # if data_se_val_two == "file-data-list" or data_se_val_two == "standard-data-list":
+                            if data_se_val_two in ("file-data-list", "standard-data-list"):
+
+                                # ✅ 중복 제거: list_id, id 기준
+                                unique_result_json = list({(item['list_id'], item['id']): item for item in result_json}.values())
+
                                 # 각 항목에 대해 추가 API 호출
-                                for dict_value in result_json:
+                                for dict_value in unique_result_json:
                                     null_atchfile_count, valid_atchfile_count, api_error_count = call_additional_api_and_save_csv(
                                         dict_value, full_file_path, null_atchfile_count, valid_atchfile_count, api_error_count
                                     )

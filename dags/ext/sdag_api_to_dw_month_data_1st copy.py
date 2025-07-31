@@ -20,17 +20,34 @@ from dto.tdm_file_url_info import TdmFileUrlInfo
 from dto.tdm_standard_url_info import TdmStandardUrlInfo
 from airflow.exceptions import AirflowSkipException
 
+"""
+추가 API 호출하여 파일 다운로드 및 CSV 저장
+"""
+import re
+import json
+import pandas as pd
+import os
+from io import BytesIO
+from xml_to_dict import XMLtoDict
+import requests
+from requests.exceptions import RequestException
+import time
+
+
+def safe_get(url, max_retries=3, backoff_factor=2, timeout=10):
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.get(url, verify=False, timeout=timeout)
+            response.raise_for_status()
+            return response
+        except RequestException as e:
+            logging.warning(f"🔁 요청 실패 {attempt}/{max_retries}회: {e}")
+            if attempt < max_retries:
+                time.sleep(backoff_factor ** attempt)
+            else:
+                raise
+
 def call_additional_api_and_save_csv(row, output_dir, null_atchfile_count, valid_atchfile_count, api_error_count):
-    """
-    추가 API 호출하여 파일 다운로드 및 CSV 저장
-    """
-    import re
-    import json
-    import pandas as pd
-    import os
-    from io import BytesIO
-    from xml_to_dict import XMLtoDict
-    import requests
 
     list_id = row.get('list_id')
     id_ = row.get('id')
@@ -42,10 +59,16 @@ def call_additional_api_and_save_csv(row, output_dir, null_atchfile_count, valid
 
     new_url = f"https://www.data.go.kr/tcs/dss/selectFileDataDownload.do?recommendDataYn=Y&publicDataPk={list_id}&publicDataDetailPk={id_}"
     try:
-        resp = requests.get(new_url, verify=False)
-        data = resp.json()
-        file_info = data.get('fileDataRegistVO') or {}
+        try:
+            # 일시적 api 호출 실패 시 재시도
+            resp = safe_get(new_url)
+            data = resp.json()
+        except Exception as e:
+            api_error_count[0] += 1
+            logging.warning(f"❌ 추가 API 호출 실패: {e}, URL: {new_url}")
+            return null_atchfile_count, valid_atchfile_count, api_error_count
 
+        file_info = data.get('fileDataRegistVO') or {}
         atchFileId = file_info.get('atchFileId')
         fileDetailSn = file_info.get('fileDetailSn')
         dataNm = file_info.get('dataNm')
@@ -53,28 +76,26 @@ def call_additional_api_and_save_csv(row, output_dir, null_atchfile_count, valid
 
         if not all([atchFileId, fileDetailSn, dataNm]):
             null_atchfile_count[0] += 1
-            logging.warning(f"⚠️ 메타정보 누락: {title},{list_id},{id_}")
-            logging.info(f"⚠️ 메타정보 누락 데이터 확인 : {atchFileId},{fileDetailSn},{dataNm}")
-            return null_atchfile_count, valid_atchfile_count ,api_error_count
+            logging.warning(f"⚠️ 메타정보 누락: {title}, list_id: {list_id}, id: {id_}")
+            return null_atchfile_count, valid_atchfile_count, api_error_count
 
         safe_dataNm = re.sub(r'[^\w\-.]', '_', str(dataNm))
-        base_file_name = os.path.splitext(orginlFileNm)[0]
         _, ext = os.path.splitext(orginlFileNm.lower())
         raw_path = os.path.join(output_dir, f"{safe_dataNm}{ext}")
         csv_path = os.path.join(output_dir, f"{safe_dataNm}.csv")
 
         download_url = f"https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId={atchFileId}&fileDetailSn={fileDetailSn}&dataNm={dataNm}"
-        download_resp = requests.get(download_url, verify=False)
 
-        if download_resp.status_code != 200:
+        try:
+            download_resp = safe_get(download_url)
+        except Exception as e:
             null_atchfile_count[0] += 1
-            logging.warning(f"❌ 다운로드 실패: {download_url}, status={download_resp.status_code}")
+            logging.warning(f"❌ 파일 다운로드 재시도 후 실패: {e}, URL: {download_url}")
             return null_atchfile_count, valid_atchfile_count, api_error_count
 
-        # 원본 파일 저장
         with open(raw_path, 'wb') as f:
             f.write(download_resp.content)
-        logging.info(f"✅ 원본 저장 완료: {raw_path} ({len(download_resp.content)} bytes)")
+        logging.info(f"✅ 원본 저장 완료: {raw_path}")
         valid_atchfile_count[0] += 1
 
         # CSV 저장 로직
@@ -126,37 +147,37 @@ def call_additional_api_and_save_csv(row, output_dir, null_atchfile_count, valid
                 logging.warning(f"❌ XML ➜ CSV 변환 실패: {e}")
 
         elif ext in [".xlsx", ".xls"]:
-            # try:
-            #     # XLSX 파일은 시각 요소가 포함된 문서로 판단되어
-            #     # CSV 변환 생략하고 원본만 유지
-            #     logging.info(f"✅ XLSX 파일은 시각 요소가 포함된 문서로 판단되어 변환 생략: {raw_path}")
-            # except Exception as e:
-            #     null_atchfile_count[0] += 1
-            #     logging.warning(f"❌ XLSX ➜ CSV 변환 실패: {e}")
-
-            # XLSX 파일을 pandas로 읽어 CSV로 변환
-            # pandas로 읽을 수 없는 경우가 있어 예외 처리 필요 => CSV 변환 생략하고 원본만 유지
-        
             try:
-                from io import BytesIO
-                import pandas as pd
-
-                excel_file = BytesIO(download_resp.content)
-                xls = pd.ExcelFile(excel_file)
-                sheet = xls.sheet_names[0]
-                df = xls.parse(sheet)
-
-                # 정형 데이터가 실제 존재할 경우만 CSV 변환
-                if df.empty or df.columns.size == 0:
-                    logging.info(f"⚠ 시각화 위주의 XLSX로 판단되어 CSV 변환 생략: {raw_path}")
-                else:
-                    df.to_csv(csv_path, index=False, encoding="utf-8-sig")
-                    logging.info(f"✅ XLSX ➜ CSV 저장 완료: {csv_path}")
-                    # valid_atchfile_count[0] += 1
-
+                # XLSX 파일은 시각 요소가 포함된 문서로 판단되어
+                # CSV 변환 생략하고 원본만 유지
+                logging.info(f"✅ XLSX 파일은 시각 요소가 포함된 문서로 판단되어 변환 생략: {raw_path}")
             except Exception as e:
                 null_atchfile_count[0] += 1
                 logging.warning(f"❌ XLSX ➜ CSV 변환 실패: {e}")
+
+            # XLSX 파일을 pandas로 읽어 CSV로 변환
+            # pandas로 읽을 수 없는 경우가 있어 예외 처리 필요 => CSV 변환 생략하고 원본만 유지
+            # ====> 시각화 위주인데도 csv 변환을 시도하는 경우가 있어 주석 처리 20250731
+        
+            # try:
+            #     from io import BytesIO
+            #     import pandas as pd
+
+            #     excel_file = BytesIO(download_resp.content)
+            #     xls = pd.ExcelFile(excel_file)
+            #     sheet = xls.sheet_names[0]
+            #     df = xls.parse(sheet)
+
+            #     # 정형 데이터가 실제 존재할 경우만 CSV 변환
+            #     if df.empty or df.columns.size == 0:
+            #         logging.info(f"⚠ 시각화 위주의 XLSX로 판단되어 CSV 변환 생략: {raw_path}")
+            #     else:
+            #         df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+            #         logging.info(f"✅ XLSX ➜ CSV 저장 완료: {csv_path}")
+
+            # except Exception as e:
+            #     null_atchfile_count[0] += 1
+            #     logging.warning(f"❌ XLSX ➜ CSV 변환 실패: {e}")
 
         else:
             logging.warning(f"⚠ 지원되지 않는 확장자: {ext} - 원본만 저장됨")
@@ -209,7 +230,7 @@ def api_dw_month_data_1st():
                                 ,'data920'
                                 ,'data922'    
                                 )
-                                and dtst_cd in ('data10006','data10018','data10030')--증평군
+                                and dtst_cd in ('data10010','data10022','data10034')--제천시
                                 order by sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)

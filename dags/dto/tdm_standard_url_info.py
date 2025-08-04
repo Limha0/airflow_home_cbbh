@@ -8,7 +8,7 @@ class TdmStandardUrlInfo(Base):
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
-    __tablename__ = "tdw_etc_std_dtst_list_api_contact_rslt"
+    __tablename__ = "tdw_etc_std_dtst_list_api_contact_rslt_cbbh"
 
     clct_sn = Column(Integer, primary_key = True)
     category_cd = Column(String)

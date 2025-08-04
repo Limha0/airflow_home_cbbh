@@ -34,7 +34,7 @@ from requests.exceptions import RequestException
 import time
 
 
-def safe_get(url, max_retries=3, backoff_factor=2, timeout=10):
+def safe_get(url, max_retries=5, backoff_factor=2, timeout=20):
     for attempt in range(1, max_retries + 1):
         try:
             response = requests.get(url, verify=False, timeout=timeout)
@@ -230,7 +230,7 @@ def api_dw_month_data_1st():
                                 ,'data920'
                                 ,'data922'    
                                 )
-                                and dtst_cd in ('data10010','data10022','data10034')--제천시
+                                --and dtst_cd in ('data10010','data10022','data10034')--제천시 말고 이제 전체로 다 돌려보기
                                 order by sn
                             '''
         data_interval_start = kwargs['data_interval_start'].in_timezone("Asia/Seoul")  # 처리 데이터의 시작 날짜 (데이터 기준 시점)
@@ -317,6 +317,7 @@ def api_dw_month_data_1st():
             import time
             from util.call_url_util import CallUrlUtil
             from xml_to_dict import XMLtoDict
+            from sqlalchemy import text
 
             tn_data_bsc_info = TnDataBscInfo(**collect_data_list['tn_data_bsc_info'])
             th_data_clct_mastr_log = ThDataClctMastrLog(**collect_data_list['th_data_clct_mastr_log'])
@@ -343,6 +344,37 @@ def api_dw_month_data_1st():
             
             header = True   # 파일 헤더 모드
             mode = "w"  # 파일 쓰기 모드 overwrite
+
+             # 데이터셋 코드별 파일 이름
+            if dtst_cd in ('data10012'
+                           ,'data10013'
+                           ,'data10014'
+                           ,'data10015'
+                           ,'data10016'
+                           ,'data10017'
+                           ,'data10018'
+                           ,'data10019'
+                           ,'data10020'
+                           ,'data10021'
+                           ,'data10022'
+                           ,'data10023' ):
+                table_name = TdmListUrlInfo.__tablename__
+            # 
+            elif dtst_cd in ('data10000'
+                            ,'data10001'
+                            ,'data10002'
+                            ,'data10003'
+                            ,'data10004'
+                            ,'data10005'
+                            ,'data10006'
+                            ,'data10007'
+                            ,'data10008'
+                            ,'data10009'
+                            ,'data10010'
+                            ,'data10011'):
+                table_name = TdmFileUrlInfo.__tablename__
+            else :
+                table_name = TdmStandardUrlInfo.__tablename__
 
             link_file_crt_yn = tn_data_bsc_info.link_file_crt_yn.lower()  # csv 파일 생성 여부
             file_name = tn_clct_file_info.insd_file_nm + "." + tn_clct_file_info.insd_file_extn  # csv 파일명
@@ -467,9 +499,203 @@ def api_dw_month_data_1st():
                                 row_count = FileUtil.check_csv_length(link_file_sprtr, full_file_name)  # 행 개수 확인
                                 if row_count != 0:
                                     logging.info(f"현재까지 파일 내 행 개수: {row_count}")
-                                
+
+                                    # DW 적재시 clct_sn 증가값
+                                    clct_sn_counter = 1
+                                    
+                                    # 데이터셋 코드별 데이터 추출
+                                    extracted_data = []
+                                    # 목록 데이터 리스트 타입인 경우
+                                    for item in json_data.get('data', []): 
+                                        if dtst_cd in ('data10012'
+                                                      ,'data10013'
+                                                      ,'data10014'
+                                                      ,'data10015'
+                                                      ,'data10016'
+                                                      ,'data10017'
+                                                      ,'data10018'
+                                                      ,'data10019'
+                                                      ,'data10020'
+                                                      ,'data10021'
+                                                      ,'data10022'
+                                                      ,'data10023' ):
+                                            extracted_data.append({
+                                                'clct_sn': clct_sn_counter , 
+                                                'category_cd': item.get('category_cd'), 
+                                                'category_nm': item.get('category_nm'), 
+                                                'collection_method': item.get('collection_method'), 
+                                                'created_at': item.get('created_at'), 
+                                                # '"desc"': item.get('desc'), 
+                                                '"desc"': item.get('desc', '').replace('%', '%%') if item.get('desc') else None,
+                                                'download_cnt': item.get('download_cnt'), 
+                                                'ext': item.get('ext'), 
+                                                'id': item.get('id'), 
+                                                'is_deleted': item.get('is_deleted'), 
+                                                'is_requested_data': item.get('is_requested_data'), 
+                                                'keywords': item.get('keywords'), 
+                                                'list_type': item.get('list_type'), 
+                                                'new_category_cd': item.get('new_category_cd'), 
+                                                'new_category_nm': item.get('new_category_nm'), 
+                                                'org_cd': item.get('org_cd'), 
+                                                'org_nm': item.get('org_nm'), 
+                                                'ownership_grounds': item.get('ownership_grounds'), 
+                                                'page_url': item.get('page_url'), 
+                                                'providing_scope': item.get('providing_scope'), 
+                                                'register_status': item.get('register_status'), 
+                                                'title': item.get('title'), 
+                                                'updated_at': item.get('updated_at'), 
+                                                'view_cnt': item.get('view_cnt'), 
+                                                'data_crtr_pnttm': th_data_clct_mastr_log.data_crtr_pnttm,
+                                                'clct_pnttm': DateUtil.get_ymdhm(),
+                                                'clct_log_sn': th_data_clct_mastr_log.clct_log_sn,
+                                                'page_no': page_no
+                                                # 필요한 모든 필드를 추가
+                                            })
+                                            clct_sn_counter += 1
+                                        # 파일 데이터 리스트 타입인 경우 
+                                        elif dtst_cd in ('data10000'
+                                                        ,'data10001'
+                                                        ,'data10002'
+                                                        ,'data10003'
+                                                        ,'data10004'
+                                                        ,'data10005'
+                                                        ,'data10006'
+                                                        ,'data10007'
+                                                        ,'data10008'
+                                                        ,'data10009'
+                                                        ,'data10010'
+                                                        ,'data10011'):
+                                            extracted_data.append({
+                                                'clct_sn': clct_sn_counter , 
+                                                'core_data_nm': item.get('core_data_nm'),
+                                                'cost_unit': item.get('cost_unit'),
+                                                'created_at': item.get('created_at'),
+                                                'data_limit': item.get('data_limit'),
+                                                'data_type': item.get('data_type'),
+                                                'dept_nm': item.get('dept_nm'),
+                                                # '"desc"': item.get('desc'),
+                                                '"desc"': item.get('desc', '').replace('%', '%%') if item.get('desc') else None,
+                                                'download_cnt': item.get('download_cnt'),
+                                                'etc': item.get('etc'),
+                                                'ext': item.get('ext'),
+                                                'id': item.get('id'),
+                                                'is_charged': item.get('is_charged'),
+                                                'is_copyrighted': item.get('is_copyrighted'),
+                                                'is_core_data': item.get('is_core_data'),
+                                                'is_deleted': item.get('is_deleted'),
+                                                'is_list_deleted': item.get('is_list_deleted'),
+                                                'is_std_data': item.get('is_std_data'),
+                                                'is_third_party_copyrighted': item.get('is_third_party_copyrighted'),
+                                                'keywords': item.get('keywords'),
+                                                'list_id': item.get('list_id'),
+                                                'list_title': item.get('list_title'),
+                                                'media_cnt': item.get('media_cnt'),
+                                                'media_type': item.get('media_type'),
+                                                'meta_url': item.get('meta_url'),
+                                                'new_category_cd': item.get('new_category_cd'),
+                                                'new_category_nm': item.get('new_category_nm'),
+                                                'next_registration_date': item.get('next_registration_date'),
+                                                'org_cd': item.get('org_cd'),
+                                                'org_nm': item.get('org_nm'),
+                                                'ownership_grounds': item.get('ownership_grounds'),
+                                                'regist_type': item.get('regist_type'),
+                                                'register_status': item.get('register_status'),
+                                                'share_scope_nm': item.get('share_scope_nm'),
+                                                'title': item.get('title'),
+                                                'update_cycle': item.get('update_cycle'),
+                                                'updated_at': item.get('updated_at'),
+                                                'data_crtr_pnttm': th_data_clct_mastr_log.data_crtr_pnttm,
+                                                'clct_pnttm': DateUtil.get_ymdhm(),
+                                                'clct_log_sn': th_data_clct_mastr_log.clct_log_sn,
+                                                'page_no': page_no
+                                                # 필요한 모든 필드를 추가
+                                            })
+                                            clct_sn_counter += 1
+                                        else:
+                                            extracted_data.append({
+                                                'clct_sn': clct_sn_counter ,
+                                                'category_cd': item.get('category_cd'),
+                                                'category_nm': item.get('category_nm'),
+                                                'collection_method': item.get('collection_method'),
+                                                'created_at': item.get('created_at'),
+                                                'dept_nm': item.get('dept_nm'),
+                                                # '"desc"': item.get('desc'),
+                                                '"desc"': item.get('desc', '').replace('%', '%%') if item.get('desc') else None,
+                                                'id': item.get('id'),
+                                                'is_requested_data': item.get('is_requested_data'),
+                                                'keywords': item.get('keywords'),
+                                                'list_id': item.get('list_id'),
+                                                'list_title': item.get('list_title'),
+                                                'list_type': item.get('list_type'),
+                                                'new_category_cd': item.get('new_category_cd'),
+                                                'new_category_nm': item.get('new_category_nm'),
+                                                'next_registration_date': item.get('next_registration_date'),
+                                                'org_cd': item.get('org_cd'),
+                                                'org_nm': item.get('org_nm'),
+                                                'ownership_grounds': item.get('ownership_grounds'),
+                                                'providing_scope': item.get('providing_scope'),
+                                                'req_cnt': item.get('req_cnt'),
+                                                'title': item.get('title'),
+                                                'updated_dt': item.get('updated_dt'),
+                                                'updated_dt': item.get('updated_dt'),
+                                                'data_crtr_pnttm': th_data_clct_mastr_log.data_crtr_pnttm,
+                                                'clct_pnttm': DateUtil.get_ymdhm(),
+                                                'clct_log_sn': th_data_clct_mastr_log.clct_log_sn,
+                                                'page_no': page_no
+                                            })
+                                            clct_sn_counter += 1
+
+                                    # with session.begin() as conn:
+                                    #     for row in extracted_data:
+                                    #         columns = ', '.join(row.keys())
+                                    #         # values = ', '.join([f"'{v}'" for v in row.values()])
+                                    #         values = ', '.join([f"'{v}'" if v is not None else 'NULL' for v in row.values()])
+                                    #         insert_stmt = f'''
+                                    #             INSERT INTO {table_name} ({columns}) VALUES ({values});
+                                    #         '''
+                                    #         conn.execute(insert_stmt)
+                                    # with session.begin() as conn:
+                                    #     for row in extracted_data:
+                                    #         columns = ', '.join(row.keys())
+                                    #         values = ', '.join([f"'{v}'" if v is not None else 'NULL' for v in row.values()])
+                                    #         insert_stmt = text(f'''
+                                    #             INSERT INTO {table_name} ({columns}) VALUES ({values});
+                                    #         ''')
+                                    #         conn.execute(insert_stmt)
+                                    # with session.begin() as conn:
+                                    #     for row in extracted_data:
+                                    #         columns = ', '.join(row.keys())
+                                    #         # values = ', '.join([f"'{v}'" for v in row.values()])
+                                    #         values = ', '.join([f"'{v}'" if v is not None else 'NULL' for v in row.values()])
+                                    #         insert_stmt = f'''
+                                    #             INSERT INTO {table_name} ({columns}) VALUES ({values});
+                                    #         '''
+                                    #         # 문제가 되는 콜론 패턴만 전각 콜론으로 교체
+                                    #         safe_stmt = insert_stmt.replace(':93동', '：93동')
+                                    #         conn.execute(text(safe_stmt))
+                                    with session.begin() as conn:
+                                        for row in extracted_data:
+                                            columns = ', '.join(row.keys())
+                                            
+                                            # 작은따옴표 이스케이프 처리
+                                            safe_values = []
+                                            for v in row.values():
+                                                if v is None:
+                                                    safe_values.append('NULL')
+                                                else:
+                                                    # 작은따옴표를 두 개로 이스케이프 (청주시에서 발생하는 문제 해결)
+                                                    escaped_v = str(v).replace("'", "''")
+                                                    safe_values.append(f"'{escaped_v}'")
+                                            
+                                            values = ', '.join(safe_values)
+                                            insert_stmt = f'''
+                                                INSERT INTO {table_name} ({columns}) VALUES ({values});
+                                            '''
+                                            # 콜론 패턴도 함께 처리 (보은군에서 발생하는 문제 해결)
+                                            safe_stmt = insert_stmt.replace(':93동', '：93동')
+                                            conn.execute(text(safe_stmt))
                                 # 페이지 증가
-                                page_no += 1
+                                # page_no += 1
 
                                 # 총 페이지 수 == 1)
                                 if total_page == 1:
@@ -509,7 +735,70 @@ def api_dw_month_data_1st():
             except Exception as e:
                 logging.info(f"call_url Exception::: {e}")
                 raise e
+            
+        # @task(trigger_rule='all_done')
+        # def insert_data_info(collect_data_list,**kwargs):
+        #     """
+        #     DW 적재 (tn_data_bsc_info에 필요한 데이터만 각각 추출하여 적재)
+        #     params : collect_data_list, tdm_list_url_info, tdm_file_url_info, tdm_standard_url_info
+        #     """
+        #     tn_data_bsc_info = TnDataBscInfo(**collect_data_list['tn_data_bsc_info'])
+        #     th_data_clct_mastr_log = ThDataClctMastrLog(**collect_data_list['th_data_clct_mastr_log'])
+        #     data_crtr_pnttm = th_data_clct_mastr_log.data_crtr_pnttm
+        #     dtst_cd = tn_data_bsc_info.dtst_cd
 
+        #     try:
+        #         with session.begin() as conn:
+                    
+        #             if dtst_cd in ['data919']:
+        #                 # 목록과 파일 데이터 Join 후 bsc에 insert하는 함수
+        #                 query = f"SELECT fn_data_file_data_list_updt('{data_crtr_pnttm}');"
+        #                 conn.execute(query)
+        #                 logging.info(f"Query executed: {query}")
+        #                 logging.info(f"fn_data_file_data_list_updt completed successfully. Inserted {query} rows.")
+                    
+        #             if dtst_cd == 'data922':
+        #                 # 표준 데이터 bsc에 insert하는 함수
+        #                 query = f"SELECT fn_data_std_data_list_updt('{data_crtr_pnttm}');"
+        #                 conn.execute(query)
+        #                 logging.info(f"Query executed: {query}")
+        #                 logging.info(f"fn_data_std_data_list_updt completed successfully. Inserted {query} rows.")
+            
+        #     except Exception as e:
+        #         logging.error(f"insert_data_info Exception for data_crtr_pnttm {data_crtr_pnttm}::: {e}")
+        #         raise e
+
+
+        # @task
+        # def check_loading_result(collect_data_list):
+        #     """
+        #     DW 적재 결과 확인
+        #     params: collect_data_list
+        #     """
+        #     # tdm_list_url_info = TdmListUrlInfo(**collect_data_list['tdm_list_url_info'])
+        #     # dw_tbl_phys_nm = TdmListUrlInfo.dw_tbl_phys_nm
+        #     # tn_data_bsc_info_test = TnDataBscInfo(**collect_data_list['tn_data_bsc_info_test'])
+        #     tn_data_bsc_info = TnDataBscInfo(**collect_data_list['tn_data_bsc_info'])
+        #     dw_tbl_phys_nm = tn_data_bsc_info.dw_tbl_phys_nm
+        #     th_data_clct_mastr_log = ThDataClctMastrLog(**collect_data_list['th_data_clct_mastr_log'])
+        #     data_crtr_pnttm = th_data_clct_mastr_log.data_crtr_pnttm
+            
+        #     tn_clct_file_info = TnClctFileInfo(**collect_data_list['tn_clct_file_info'])
+        #     log_full_file_path = collect_data_list['log_full_file_path']
+        #     # dw_tbl_phys_nm = TnDataBscInfo.__tablename__
+
+        #     result_count = 0
+        #     get_count_stmt = f"""SELECT COUNT(data_crtr_pnttm) FROM {dw_tbl_phys_nm} WHERE data_crtr_pnttm = '{data_crtr_pnttm}'"""
+        #     try:
+        #         with session.begin() as conn:
+        #             result_count = conn.execute(get_count_stmt).first()[0]
+        #             th_data_clct_mastr_log = conn.get(ThDataClctMastrLog, collect_data_list['th_data_clct_mastr_log']['clct_log_sn'])
+        #             th_data_clct_mastr_log.dw_rcrd_cnt = result_count
+        #             CommonUtil.update_log_table(log_full_file_path, tn_clct_file_info, session, th_data_clct_mastr_log, CONST.STEP_DW_LDADNG, CONST.STTS_COMP, CONST.MSG_DW_LDADNG_COMP, "n")
+        #             logging.info(f"check_loading_result dw_rcrd_cnt::: {result_count}")
+        #     except Exception as e:
+        #         logging.error(f"check_loading_result Exception::: {e}")
+        #         raise e
         file_path = create_directory(collect_data_list)
         file_path >> call_url(collect_data_list, file_path) 
                 
